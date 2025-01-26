@@ -8,6 +8,14 @@
 * `serve -s build` to start web server from localhost
 * runs on `localhost:3000` by default
 
+Node18.js or better required to run
+```
+sudo apt update
+sudo apt install curl -y
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
 Browser commands:
 1. `>` next (sequential)
 2. `<` prev (sequential)
