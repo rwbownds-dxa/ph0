@@ -1,3 +1,21 @@
+# ph0 is a ReactJS app for viewing photos in a browser
+
+* created using create-react-app
+* place images in the src/img folder
+* `npm start` to start test server
+* `npm run build` to create build in build folder
+* `serve -s build` to start web server from localhost
+* runs on `localhost:3000` by default
+
+Browser commands:
+`>` next
+`<` prev
+`
+
+----------------------
+Standard React README
+----------------------
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
