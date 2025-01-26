@@ -1,16 +1,20 @@
 # ph0 is a ReactJS app for viewing photos in a browser
 
 * created using create-react-app
-* place images in the src/img folder
+* place images in the `src/img` folder
+* `git install` to install modules
 * `npm start` to start test server
 * `npm run build` to create build in build folder
 * `serve -s build` to start web server from localhost
 * runs on `localhost:3000` by default
 
 Browser commands:
-`>` next
-`<` prev
-`
+1. `>` next (sequential)
+2. `<` prev (sequential)
+3. `>>` next (from stack or random)
+4. `<<` back (from stack)
+5. `r` start/stop random slideshow
+6. `1` to `0` set image duration to 1-10 seconds
 
 ----------------------
 Standard React README
