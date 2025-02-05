@@ -83,14 +83,14 @@ const ImageCarousel = () => {
         });
     };
 
-    // Handle keydown events for left and right arrow keys
+    // Handle keydown events
     const handleKeyDown = (event) => {
         if (event.key === "ArrowRight") {
             nextImage();
         } else if (event.key === "ArrowLeft") {
             prevImage();
         } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-          randomImage();
+            randomImage();
         } else if (event.key === "r") {
             setIsRandomPlay((prev) => !prev);
         } else if (event.key === "z") {
@@ -100,6 +100,19 @@ const ImageCarousel = () => {
         } else if (event.key >= '0' && event.key <= '9') {
             const interval = event.key === '0' ? 10 : parseInt(event.key, 10);
             setRandomPlayInterval(interval * 1000);
+        } else if (event.key === 'n') {
+            goToIndex();
+        }
+    };
+    
+    const goToIndex = () => {
+        const userInput = prompt("Enter an image index:");
+        const index = parseInt(userInput, 10);
+    
+        if (!isNaN(index) && index >= 0 && index < images.length) {
+            setCurrentIndex(index);
+        } else {
+            alert("Invalid index. Please enter a number between 0 and " + (images.length - 1));
         }
     };
 
