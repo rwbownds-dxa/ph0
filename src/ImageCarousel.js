@@ -77,9 +77,10 @@ const ImageCarousel = () => {
         setZoom((prevZoom) => {
             const newZoom = direction === '+' ? prevZoom + 10 : prevZoom - 10;
             // Apply the new zoom value to the img-container element
-            const img = document.querySelector('#img-container');
+            const img = document.querySelector('#img-container img');
             if (img) {
                 img.style.transform = `scale(${newZoom / 100})`;
+                img.style.transformOrigin = 'left top';
             }
             return newZoom;
         });
@@ -211,7 +212,7 @@ const styles = {
         alignItems: 'center',
         height: '100vh',
         width: '100vw',
-        overflow: 'hidden',
+        overflow: 'auto',
         backgroundColor: '#000',
         position: 'relative',
     },
