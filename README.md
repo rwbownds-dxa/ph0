@@ -8,7 +8,7 @@
 * `serve -s build` to start web server from localhost
 * runs on `localhost:3000` by default
 
-Node18.js or better required to run
+NodeJS.18 or better required to run
 ```
 sudo apt update
 sudo apt install curl -y

@@ -13,6 +13,8 @@
 
 # special for this app
 /img
+/src/img
+/src/imgSav
 
 # misc
 .DS_Store

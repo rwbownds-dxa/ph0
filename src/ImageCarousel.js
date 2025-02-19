@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { saveAs } from 'file-saver';
 
 // Import all images from the src/img directory
 const images = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
@@ -21,20 +22,21 @@ const ImageCarousel = () => {
     };
 
     const randomImage = () => {
-      let randomIndex;
-      if (reverseImages.length > 0) {
-        randomIndex = reverseImages.pop();
-        setCurrentIndex(randomIndex);
-        setPrevImages([...previousImages, randomIndex]);
-        return;
-      } else { 
-      do {
-          randomIndex = Math.floor(Math.random() * images.length);
-      } while (randomIndex === currentIndex);  // Ensure that the new image is different from the current one
+        let randomIndex;
+        if (reverseImages.length > 0) {
+            randomIndex = reverseImages.pop();
+            setCurrentIndex(randomIndex);
+            setPrevImages([...previousImages, randomIndex]);
+            return;
+        } else { 
+        do {
+            randomIndex = Math.floor(Math.random() * images.length);
+        } while (randomIndex === currentIndex);  // Ensure that the new image is different from the current one
 
       setCurrentIndex(randomIndex);
       setPrevImages([...previousImages, randomIndex]);
       setIsDirectionForward(true);
+
       console.log(previousImages);
       console.log(reverseImages);
       console.log(isDirectionForward);
@@ -83,7 +85,9 @@ const ImageCarousel = () => {
         });
     };
 
-    // Handle keydown events
+
+    // EVENT HANDLERS FOR KEYS
+
     const handleKeyDown = (event) => {
         if (event.key === "ArrowRight") {
             nextImage();
@@ -97,13 +101,22 @@ const ImageCarousel = () => {
             changeZoom('+');
         } else if (event.key === "x") {
             changeZoom('-');
-        } else if (event.key >= '0' && event.key <= '9') {
+
+        } else if (event.key >= '0' && event.key <= '9') {  // change the random play interval
             const interval = event.key === '0' ? 10 : parseInt(event.key, 10);
             setRandomPlayInterval(interval * 1000);
-        } else if (event.key === 'n') {
+        } else if (event.key === '.') {   // Go to a specific image index
+            setRandomPlayInterval(randomPlayInterval / 7 );
+        } else if (event.key === ',') {   // Go to a specific image index
+            setRandomPlayInterval(randomPlayInterval * 3 );
+
+        } else if (event.key === 'n') {   // Go to a specific image index
             goToIndex();
+        } else if (event.key === 's') {   // Save the current image
+            saveImage(currentIndex);
         }
     };
+    
     
     const goToIndex = () => {
         const userInput = prompt("Enter an image index:");
@@ -116,6 +129,37 @@ const ImageCarousel = () => {
         }
     };
 
+    const saveImage = async ( index ) => {
+
+        const currentImage = images[index];
+        const defaultPath = 'D:\\proj\\ph0\\src\\imgSav';
+    
+        try {
+            console.log(currentImage);
+            // currentImage = /static/media/{FILENAME.extension}
+            var fileName = currentImage.split('/')[3];
+            // fileName = fileName.split('.')[0];  
+            fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+            console.log(fileName);
+            const response = await fetch(currentImage);
+            const blob = await response.blob();
+            saveAs(blob, fileName );
+        } catch (error) {
+            console.error('Error saving image:', error);
+            alert('Failed to save image.');
+        }
+    };
+
+
+    // INDEX CHANGE USE EFFECT
+
+    useEffect(() => {
+        console.log('Current index updated:', currentIndex);
+    }, [currentIndex]);
+
+
+    // RANDOM PLAY USE EFFECT
+
     useEffect(() => {
         if (isRandomPlay) {
             const interval = setInterval(randomImage, randomPlayInterval);
@@ -123,12 +167,27 @@ const ImageCarousel = () => {
         }
     }, [isRandomPlay, randomPlayInterval]);
 
+
+    // KEYDOWN EVENT LISTENER USE EFFECT
+
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
+    }, [ handleKeyDown]);
+
+
+    // FIRST TIME USE EFFECT
+
+    useEffect(() => {
+        console.log("#images: ", images.length)
+
+        setCurrentIndex(Math.floor(Math.random() * images.length))
     }, []);
+
+
+    // DISPLAY JSX
 
     return (
         <div id="img-container" style={styles.container}>
@@ -141,6 +200,9 @@ const ImageCarousel = () => {
         </div>
     );
 };
+
+
+// STYLE DEFINITIONS
 
 const styles = {
     container: {
