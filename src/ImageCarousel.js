@@ -8,10 +8,13 @@ const ImageCarousel = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isRandomPlay, setIsRandomPlay] = useState(false);
     const [zoom, setZoom] = useState(100);
+    const [ imageStack, setImageStack ] = useState([]); // imageStack is an array of image indexes that are saved on a 'o' and pulled on 'p'
+    const [stackIndex, setStackIndex] = useState(-1); // Track the current position in the imageStack
     const [ previousImages, setPrevImages ] = useState([]);
     const [ reverseImages, setReverseImages ] = useState([]);
     const [ isDirectionForward, setIsDirectionForward ] = useState(true);
     const [ randomPlayInterval, setRandomPlayInterval ] = useState(6000);
+    const [isStackRandomPlay, setIsStackRandomPlay] = useState(false); // Track if stack random play is active
 
     const nextImage = () => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
@@ -112,6 +115,8 @@ const ImageCarousel = () => {
             randomImage();
         } else if (event.key === "r") {
             setIsRandomPlay((prev) => !prev);
+        } else if (event.key === "t") {
+            setIsStackRandomPlay((prev) => !prev);
         } else if (event.key === "z") {
             changeZoom('+');
         } else if (event.key === "x") {
@@ -130,9 +135,31 @@ const ImageCarousel = () => {
             goToIndex();
         } else if (event.key === 's') {   // Save the current image
             saveImage(currentIndex);
-        }
+        
+        } else if (event.key === 'o') {   // Place the current image on the stack
+            setImageStack((imageStack) => [...imageStack, currentIndex]);
+        } else if (event.key === 'p') {   // Pull the current image from the stack
+            setImageStack((imageStack) => {
+                const index = imageStack.indexOf(currentIndex);
+                if (index !== -1) {
+                    imageStack.splice(index, 1);
+                }
+                return [...imageStack];
+            });
+    } else if (event.key === '[') {   // Go to the previous image in the stack
+        setStackIndex((prevIndex) => {
+            const newIndex = prevIndex > 0 ? prevIndex - 1 : imageStack.length - 1;
+            setCurrentIndex(imageStack[newIndex]);
+            return newIndex;
+        });
+    } else if (event.key === ']') {   // Go to the next image in the stack
+        setStackIndex((prevIndex) => {
+            const newIndex = (prevIndex + 1) % imageStack.length;
+            setCurrentIndex(imageStack[newIndex]);
+            return newIndex;
+        });
+    }
     };
-    
     
     const goToIndex = () => {
         const userInput = prompt("Enter an image index:");
@@ -184,6 +211,21 @@ const ImageCarousel = () => {
             return () => clearInterval(interval);
         }
     }, [isRandomPlay, randomPlayInterval]);
+
+
+    // STACK RANDOM PLAY USE EFFECT
+
+    useEffect(() => {
+        if (isStackRandomPlay) {
+            const interval = setInterval(() => {
+                if (imageStack.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * imageStack.length);
+                    setCurrentIndex(imageStack[randomIndex]);
+                }
+            }, randomPlayInterval);
+            return () => clearInterval(interval);
+        }
+    }, [isStackRandomPlay, randomPlayInterval, imageStack]);
 
 
     // KEYDOWN EVENT LISTENER USE EFFECT
