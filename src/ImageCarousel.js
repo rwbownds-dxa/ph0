@@ -140,6 +140,8 @@ const ImageCarousel = () => {
     
         if (!isNaN(index) && index >= 0 && index < images.length) {
             setCurrentIndex(index);
+            // add the index to the previous images array
+            setPrevImages((prevImages) => [...prevImages, index]);
         } else {
             alert("Invalid index. Please enter a number between 0 and " + (images.length - 1));
         }
