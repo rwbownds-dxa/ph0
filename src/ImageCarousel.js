@@ -21,12 +21,17 @@ const ImageCarousel = () => {
         setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
     };
 
+    // GET THE NEXT "RANDOM" IMAGE
+    //
+    // 1. If there are images in the reverseImages array, pop one and set it as the current image
+    // 2. If the reverseImages array is empty, generate a random index until it is different from the current one
+    
     const randomImage = () => {
         let randomIndex;
         if (reverseImages.length > 0) {
             randomIndex = reverseImages.pop();
             setCurrentIndex(randomIndex);
-            setPrevImages([...previousImages, randomIndex]);
+            setPrevImages((prevImages) => [...prevImages, randomIndex]);
             return;
         } else { 
         do {
@@ -34,11 +39,11 @@ const ImageCarousel = () => {
         } while (randomIndex === currentIndex);  // Ensure that the new image is different from the current one
 
       setCurrentIndex(randomIndex);
-      setPrevImages([...previousImages, randomIndex]);
+      setPrevImages((prevImages) => [...prevImages, randomIndex]);
       setIsDirectionForward(true);
 
-      console.log(previousImages);
-      console.log(reverseImages);
+      console.log('previous ',previousImages);
+      console.log('reverse ', reverseImages);
       console.log(isDirectionForward);
     }
     };
@@ -73,6 +78,15 @@ const ImageCarousel = () => {
     };
 
     const changeZoom = (direction) => {
+        if ( direction === '1' ) {
+            setZoom(100);
+            const img = document.querySelector('#img-container img');
+            if (img) {
+                img.style.transform = `scale(${1})`;
+                img.style.transformOrigin = 'left top';
+            }
+            return 100;
+        }
         // Update the zoom state first
         setZoom((prevZoom) => {
             const newZoom = direction === '+' ? prevZoom + 10 : prevZoom - 10;
@@ -102,7 +116,8 @@ const ImageCarousel = () => {
             changeZoom('+');
         } else if (event.key === "x") {
             changeZoom('-');
-
+        } else if (event.key === "c") {
+            changeZoom('1');
         } else if (event.key >= '0' && event.key <= '9') {  // change the random play interval
             const interval = event.key === '0' ? 10 : parseInt(event.key, 10);
             setRandomPlayInterval(interval * 1000);
@@ -182,9 +197,23 @@ const ImageCarousel = () => {
     // FIRST TIME USE EFFECT
 
     useEffect(() => {
-        console.log("#images: ", images.length)
 
-        setCurrentIndex(Math.floor(Math.random() * images.length))
+        console.log("#images: ", images.length)
+        const firstImageIndex = Math.floor(Math.random() * images.length);
+        setCurrentIndex(firstImageIndex);
+        setPrevImages([firstImageIndex]);
+
+        const handleContextMenu = (event) => {
+            event.preventDefault();
+            randomImage();
+        };
+    
+        window.addEventListener("contextmenu", handleContextMenu);
+        
+        return () => {
+            window.removeEventListener("contextmenu", handleContextMenu);
+        };
+
     }, []);
 
 
