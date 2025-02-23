@@ -103,6 +103,18 @@ const ImageCarousel = () => {
         });
     };
 
+    const savePlaylist = () => {
+        const listName = prompt("Enter a name for the playlist:");
+        if (!listName) {
+            alert("Playlist name is required.");
+            return;
+        }
+    
+        const playlist = imageStack.map(index => images[index].split('/').pop());
+        localStorage.setItem(listName, JSON.stringify(playlist));
+        alert(`Playlist "${listName}" saved successfully.`);
+    };
+
 
     // EVENT HANDLERS FOR KEYS
 
@@ -146,6 +158,22 @@ const ImageCarousel = () => {
                 }
                 return [...imageStack];
             });
+        } else if (event.key === 'y') {   // Save the playlist
+            savePlaylist();
+        } else if (event.key === 'u') {   // Load a playlist
+            const listName = prompt("Enter the name of the playlist to load:");
+            if (!listName) {
+                alert("Playlist name is required.");
+                return;
+            }
+            const playlist = JSON.parse(localStorage.getItem(listName));
+            if (playlist) {
+                setImageStack(playlist.map((filename) => images.findIndex((path) => path.includes(filename))));
+            } else {
+                alert("Playlist not found.");
+            }
+        
+
     } else if (event.key === '[') {   // Go to the previous image in the stack
         setStackIndex((prevIndex) => {
             const newIndex = prevIndex > 0 ? prevIndex - 1 : imageStack.length - 1;
