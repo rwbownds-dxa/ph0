@@ -103,18 +103,57 @@ const ImageCarousel = () => {
         });
     };
 
-    const savePlaylist = () => {
-        const listName = prompt("Enter a name for the playlist:");
-        if (!listName) {
-            alert("Playlist name is required.");
-            return;
-        }
-    
-        const playlist = imageStack.map(index => images[index].split('/').pop());
-        localStorage.setItem(listName, JSON.stringify(playlist));
-        alert(`Playlist "${listName}" saved successfully.`);
-    };
 
+    // SAVE PLAYLIST FUNCTION
+
+const savePlaylist = () => {
+    const listName = prompt("Enter a name for the playlist:");
+    if (listName === null || listName.trim() === "") {
+        alert("Playlist name is required.");
+        return;
+    }
+
+    const playlist = imageStack.map(index => {
+        const fullPath = images[index];
+        const fileName = fullPath.split('/').pop();
+        const baseName = fileName.split('.')[0];
+        const extension = fileName.split('.').pop();
+        return `${baseName}.${extension}`;
+    });
+
+    localStorage.setItem(listName, JSON.stringify(playlist));
+    alert(`Playlist "${listName}" saved successfully.`);
+};
+
+const loadPlaylist = () => {
+    const listName = prompt("Enter the name of the playlist to load:");
+    if (!listName) {
+        alert("Playlist name is required.");
+        return;
+    }
+    const playlist = JSON.parse(localStorage.getItem(listName));
+    console.log('Playlist:', playlist);
+    if (playlist) {
+        const mappedPlaylist = playlist.map((filename) => {
+            console.log('Filename:', filename);
+            const index = images.findIndex((path) => {
+                const fullPath = path.split('/').pop();
+                const baseName = fullPath.split('.')[0];
+                const extension = fullPath.split('.').pop();
+                const fullFileName = `${baseName}.${extension}`;
+                const includesFilename = fullFileName.includes(filename);
+                console.log('Path:', path, 'Full Filename:', fullFileName, 'Includes Filename:', includesFilename);
+                return includesFilename;
+            });
+            console.log('Index:', index);
+            return index;
+        });
+        setImageStack(mappedPlaylist);
+        setCurrentIndex(mappedPlaylist[0]);
+    } else {
+        alert("Playlist not found.");
+    }
+};
 
     // EVENT HANDLERS FOR KEYS
 
@@ -158,34 +197,26 @@ const ImageCarousel = () => {
                 }
                 return [...imageStack];
             });
+
+        // load and save playlist
         } else if (event.key === 'y') {   // Save the playlist
             savePlaylist();
         } else if (event.key === 'u') {   // Load a playlist
-            const listName = prompt("Enter the name of the playlist to load:");
-            if (!listName) {
-                alert("Playlist name is required.");
-                return;
-            }
-            const playlist = JSON.parse(localStorage.getItem(listName));
-            if (playlist) {
-                setImageStack(playlist.map((filename) => images.findIndex((path) => path.includes(filename))));
-            } else {
-                alert("Playlist not found.");
-            }
-        
+            loadPlaylist();
 
-    } else if (event.key === '[') {   // Go to the previous image in the stack
-        setStackIndex((prevIndex) => {
-            const newIndex = prevIndex > 0 ? prevIndex - 1 : imageStack.length - 1;
-            setCurrentIndex(imageStack[newIndex]);
-            return newIndex;
-        });
-    } else if (event.key === ']') {   // Go to the next image in the stack
-        setStackIndex((prevIndex) => {
-            const newIndex = (prevIndex + 1) % imageStack.length;
-            setCurrentIndex(imageStack[newIndex]);
-            return newIndex;
-        });
+        // next and previous saved image
+        } else if (event.key === '[') {   // Go to the previous image in the stack
+            setStackIndex((prevIndex) => {
+                const newIndex = prevIndex > 0 ? prevIndex - 1 : imageStack.length - 1;
+                setCurrentIndex(imageStack[newIndex]);
+                return newIndex;
+            });
+        } else if (event.key === ']') {   // Go to the next image in the stack
+            setStackIndex((prevIndex) => {
+                const newIndex = (prevIndex + 1) % imageStack.length;
+                setCurrentIndex(imageStack[newIndex]);
+                return newIndex;
+            });
     }
     };
     
