@@ -106,54 +106,58 @@ const ImageCarousel = () => {
 
     // SAVE PLAYLIST FUNCTION
 
-const savePlaylist = () => {
-    const listName = prompt("Enter a name for the playlist:");
-    if (listName === null || listName.trim() === "") {
-        alert("Playlist name is required.");
-        return;
-    }
+    const savePlaylist = () => {
+        const listName = prompt("Enter a name for the playlist:");
+        if (listName === null || listName.trim() === "") {
+            alert("Playlist name is required.");
+            return;
+        }
 
-    const playlist = imageStack.map(index => {
-        const fullPath = images[index];
-        const fileName = fullPath.split('/').pop();
-        const baseName = fileName.split('.')[0];
-        const extension = fileName.split('.').pop();
-        return `${baseName}.${extension}`;
-    });
-
-    localStorage.setItem(listName, JSON.stringify(playlist));
-    alert(`Playlist "${listName}" saved successfully.`);
-};
-
-const loadPlaylist = () => {
-    const listName = prompt("Enter the name of the playlist to load:");
-    if (!listName) {
-        alert("Playlist name is required.");
-        return;
-    }
-    const playlist = JSON.parse(localStorage.getItem(listName));
-    console.log('Playlist:', playlist);
-    if (playlist) {
-        const mappedPlaylist = playlist.map((filename) => {
-            console.log('Filename:', filename);
-            const index = images.findIndex((path) => {
-                const fullPath = path.split('/').pop();
-                const baseName = fullPath.split('.')[0];
-                const extension = fullPath.split('.').pop();
-                const fullFileName = `${baseName}.${extension}`;
-                const includesFilename = fullFileName.includes(filename);
-                console.log('Path:', path, 'Full Filename:', fullFileName, 'Includes Filename:', includesFilename);
-                return includesFilename;
-            });
-            console.log('Index:', index);
-            return index;
+        const playlist = imageStack.map(index => {
+            const fullPath = images[index];
+            const fileName = fullPath.split('/').pop();
+            const baseName = fileName.split('.')[0];
+            const extension = fileName.split('.').pop();
+            return `${baseName}.${extension}`;
         });
-        setImageStack(mappedPlaylist);
-        setCurrentIndex(mappedPlaylist[0]);
-    } else {
-        alert("Playlist not found.");
-    }
-};
+
+        localStorage.setItem(listName, JSON.stringify(playlist));
+        alert(`Playlist "${listName}" saved successfully.`);
+    };
+
+
+    // LOAD PLAYLIST FUNCTION
+
+    const loadPlaylist = () => {
+        const listName = prompt("Enter the name of the playlist to load:");
+        if (!listName) {
+            alert("Playlist name is required.");
+            return;
+        }
+        const playlist = JSON.parse(localStorage.getItem(listName));
+        console.log('Playlist load:', playlist);
+        if (playlist) {
+            const mappedPlaylist = playlist.map((filename) => {
+                // console.log('Filename:', filename);
+                const index = images.findIndex((path) => {
+                    const fullPath = path.split('/').pop();
+                    const baseName = fullPath.split('.')[0];
+                    const extension = fullPath.split('.').pop();
+                    const fullFileName = `${baseName}.${extension}`;
+                    const includesFilename = fullFileName.includes(filename);
+                    //console.log('Path:', path, 'Full Filename:', fullFileName, 'Includes Filename:', includesFilename);
+                    return includesFilename;
+                });
+                // console.log('Index:', index);
+                return index;
+            });
+            setImageStack(mappedPlaylist);
+            setCurrentIndex(mappedPlaylist[0]);
+        } else {
+            alert("Playlist not found.");
+        }
+    };
+
 
     // EVENT HANDLERS FOR KEYS
 
