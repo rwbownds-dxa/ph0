@@ -15,7 +15,8 @@ const ImageCarousel = () => {
     const [ isDirectionForward, setIsDirectionForward ] = useState(true);
     const [ randomPlayInterval, setRandomPlayInterval ] = useState(6000);
     const [isStackRandomPlay, setIsStackRandomPlay] = useState(false); // Track if stack random play is active
-
+    const [imageWeights, setImageWeights] = useState(Array(images.length).fill(1)); // Initialize weights to 1 for each image
+    
     const nextImage = () => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
     };
@@ -37,8 +38,25 @@ const ImageCarousel = () => {
             setPrevImages((prevImages) => [...prevImages, randomIndex]);
             return;
         } else { 
-        do {
-            randomIndex = Math.floor(Math.random() * images.length);
+            do {
+            const totalWeight = imageWeights.reduce((sum, weight) => sum + weight, 0);
+            console.log('Total weight:', totalWeight);
+            let randomWeight = Math.random() * totalWeight;
+            console.log('Random weight:', randomWeight);
+            for (let i = 0; i < images.length; i++) {
+                randomWeight -= imageWeights[i];
+                if (randomWeight <= 0) {
+                    randomIndex = i;
+                    break;
+                }
+            }
+            console.log('Random index:', randomIndex);
+        
+            // use a weight index to choose the next image
+            // each image in images has a weight, the higher the weight, the higher the chance of being chosen
+            // weight is set when user hits the 'w' key and is looking at the image
+
+            // randomIndex = Math.floor(Math.random() * images.length);
         } while (randomIndex === currentIndex);  // Ensure that the new image is different from the current one
 
       setCurrentIndex(randomIndex);
@@ -161,6 +179,7 @@ const ImageCarousel = () => {
 
     // EVENT HANDLERS FOR KEYS
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleKeyDown = (event) => {
         if (event.key === "ArrowRight") {
             nextImage();
@@ -168,16 +187,22 @@ const ImageCarousel = () => {
             prevImage();
         } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
             randomImage();
+
+        // random play slideshow
         } else if (event.key === "r") {
             setIsRandomPlay((prev) => !prev);
         } else if (event.key === "t") {
             setIsStackRandomPlay((prev) => !prev);
+
+        // zoom in, zoom out, reset zoom
         } else if (event.key === "z") {
             changeZoom('+');
         } else if (event.key === "x") {
             changeZoom('-');
         } else if (event.key === "c") {
             changeZoom('1');
+
+        // change the random play interval
         } else if (event.key >= '0' && event.key <= '9') {  // change the random play interval
             const interval = event.key === '0' ? 10 : parseInt(event.key, 10);
             setRandomPlayInterval(interval * 1000);
@@ -186,11 +211,15 @@ const ImageCarousel = () => {
         } else if (event.key === ',') {   // Go to a specific image index
             setRandomPlayInterval(randomPlayInterval * 3 );
 
-        } else if (event.key === 'n') {   // Go to a specific image index
+        // Go to a specific image index
+        } else if (event.key === 'n') {   
             goToIndex();
-        } else if (event.key === 's') {   // Save the current image
+
+         // Save the current image to the disk
+        } else if (event.key === 's') {  
             saveImage(currentIndex);
         
+        // image stack save and delete
         } else if (event.key === 'o') {   // Place the current image on the stack
             setImageStack((imageStack) => [...imageStack, currentIndex]);
         } else if (event.key === 'p') {   // Pull the current image from the stack
@@ -202,7 +231,7 @@ const ImageCarousel = () => {
                 return [...imageStack];
             });
 
-        // load and save playlist
+        // load and save stack to playlist
         } else if (event.key === 'y') {   // Save the playlist
             savePlaylist();
         } else if (event.key === 'u') {   // Load a playlist
@@ -221,6 +250,24 @@ const ImageCarousel = () => {
                 setCurrentIndex(imageStack[newIndex]);
                 return newIndex;
             });
+
+        // Set the weight of the current image
+        } else if (event.key === "w") { // prompt user to set weight of the current image
+            const weight = prompt("Enter a weight for the current image:");
+            if (weight === null || weight.trim() === "") {
+                alert("Weight is required.");
+                return;
+            }
+            const weightValue = parseInt(weight, 10);
+            if (!isNaN(weightValue)) {
+                setImageWeights((prevWeights) => {
+                    const newWeights = [...prevWeights];
+                    newWeights[currentIndex] = weightValue;
+                    return newWeights;
+                });
+            } else {
+                alert("Invalid weight. Please enter a number.");
+            }
     }
     };
     
