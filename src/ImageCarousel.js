@@ -221,13 +221,16 @@ const ImageCarousel = () => {
             randomImage();
         } else if (event.key === "ArrowDown") {
             gobackImage();
+
         // random play slideshow
         } else if (event.key === "r") {
             setIsRandomPlay((prev) => !prev);
+
+        // random play from image stack
         } else if (event.key === "t") {
             setIsStackRandomPlay((prev) => !prev);
 
-        // zoom in, zoom out, reset zoom
+        // ZOOM in, zoom out, reset zoom
         } else if (event.key === "z") {
             changeZoom('+');
         } else if (event.key === "x") {
@@ -235,7 +238,7 @@ const ImageCarousel = () => {
         } else if (event.key === "c") {
             changeZoom('1');
 
-        // change the random play interval
+        // change the random play INTERVAL
         } else if (event.key >= '0' && event.key <= '9') {  // change the random play interval
             const interval = event.key === '0' ? 10 : parseInt(event.key, 10);
             setRandomPlayInterval(interval * 1000);
@@ -244,15 +247,15 @@ const ImageCarousel = () => {
         } else if (event.key === ',') {   // Go to a specific image index
             setRandomPlayInterval(randomPlayInterval * 3 );
 
-        // Go to a specific image index
+        // GO TO a specific image index
         } else if (event.key === 'n') {   
             goToIndex();
 
-         // Save the current image to the disk
+         // SAVE FILE: current image to the disk
         } else if (event.key === 's') {  
             saveImage(currentIndex);
         
-        // image stack save and delete
+        // IMAGE STACK save and delete
         } else if (event.key === 'o') {   // Place the current image on the stack
             setImageStack((imageStack) => [...imageStack, currentIndex]);
         } else if (event.key === 'p') {   // Pull the current image from the stack
@@ -285,23 +288,8 @@ const ImageCarousel = () => {
             });
 
         // Set the weight of the current image
-        } else if (event.key === "w") { // prompt user to set weight of the current image
-            const weight = prompt("Enter a weight for the current image:");
-            if (weight === null || weight.trim() === "") {
-                alert("Weight is required.");
-                return;
-            }
-            const weightValue = parseInt(weight, 10);
-            if (!isNaN(weightValue)) {
-                setImageWeights((prevWeights) => {
-                    const newWeights = [...prevWeights];
-                    newWeights[currentIndex] = weightValue;
-                    return newWeights;
-                });
-            } else {
-                alert("Invalid weight. Please enter a number.");
-            }
-    }
+        } else if (event.key === "w") { setWeightForCurrentImage(); }
+    
     };
     
     const goToIndex = () => {
@@ -337,6 +325,27 @@ const ImageCarousel = () => {
             alert('Failed to save image.');
         }
     };
+
+    // SET WEIGHT FOR CURRENT IMAGE
+
+    const setWeightForCurrentImage = () => {
+        const weight = prompt("Enter a weight for the current image:");
+        if (weight === null || weight.trim() === "") {
+            alert("Weight is required.");
+            return;
+        }
+        const weightValue = parseInt(weight, 10);
+        if (!isNaN(weightValue)) {
+            setImageWeights((prevWeights) => {
+                const newWeights = [...prevWeights];
+                newWeights[currentIndex] = weightValue;
+                return newWeights;
+            });
+        } else {
+            alert("Invalid weight. Please enter a number.");
+        }
+    };
+
 
 
     // INDEX CHANGE USE EFFECT
