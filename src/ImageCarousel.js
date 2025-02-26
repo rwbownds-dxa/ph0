@@ -185,9 +185,10 @@ const ImageCarousel = () => {
             nextImage();
         } else if (event.key === "ArrowLeft") {
             prevImage();
-        } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        } else if (event.key === "ArrowUp" ) {
             randomImage();
-
+        } else if (event.key === "ArrowDown") {
+            gobackImage();
         // random play slideshow
         } else if (event.key === "r") {
             setIsRandomPlay((prev) => !prev);
