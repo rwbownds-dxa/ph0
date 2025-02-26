@@ -2,7 +2,24 @@ import React, { useState, useEffect } from "react";
 import { saveAs } from 'file-saver';
 
 // Import all images from the src/img directory
-const images = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
+// const images = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
+
+// Import all images from the src/imgNew directory
+let newImages = [];
+try {
+    newImages = require.context("./imgNew", false, /\.(jpg|gif)$/).keys().map((path) => require(`./imgNew/${path.replace('./', '')}`));
+} catch (error) {
+    console.error("Error loading images from imgNew:", error);
+}
+console.log('newImages: ', newImages);
+// Import all images from the src/img directory
+const standardImages = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
+console.log ('standardImages: ', standardImages);
+// Combine the images and assign weights
+const images = [...newImages, ...standardImages];
+const initialWeights = [...Array(newImages.length).fill(20), ...Array(standardImages.length).fill(1)];
+
+console.log('images: ', images);
 
 const ImageCarousel = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -15,7 +32,7 @@ const ImageCarousel = () => {
     const [ isDirectionForward, setIsDirectionForward ] = useState(true);
     const [ randomPlayInterval, setRandomPlayInterval ] = useState(6000);
     const [isStackRandomPlay, setIsStackRandomPlay] = useState(false); // Track if stack random play is active
-    const [imageWeights, setImageWeights] = useState(Array(images.length).fill(1)); // Initialize weights to 1 for each image
+    const [imageWeights, setImageWeights] = useState(initialWeights); // Initialize weights to 1 for each image
     
     const nextImage = () => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
@@ -169,6 +186,21 @@ const ImageCarousel = () => {
                 // console.log('Index:', index);
                 return index;
             });
+            // prompt user for a weight to assign to itmes in the playlist (default 10)
+            const weight = prompt("Enter a weight for the playlist:", "10");
+            if (weight === null || weight.trim() === "") { weight = 10; }
+            const weightValue = parseInt(weight, 10);
+            if (!isNaN(weightValue)) {
+                setImageWeights((prevWeights) => {
+                    const newWeights = [...prevWeights];
+                    mappedPlaylist.forEach((index) => {
+                        newWeights[index] = weightValue;
+                    });
+                    return newWeights;
+                });
+            } else {
+                alert("Invalid weight. Please enter a number.");
+            }
             setImageStack(mappedPlaylist);
             setCurrentIndex(mappedPlaylist[0]);
         } else {
@@ -381,7 +413,8 @@ const ImageCarousel = () => {
             <button onClick={nextImage} style={styles.rightArrow}>{">"}</button>
             <button onClick={gobackImage} style={styles.leftArrow2}>{"<<"}</button>
             <button onClick={randomImage} style={styles.rightArrow2}>{">>"}</button>
-            <button onClick={test} style={styles.rightArrow3}>{currentIndex}</button>
+            <button onClick={test} style={styles.imageWeight}>{imageWeights[currentIndex]}</button>
+            <button onClick={test} style={styles.currentIndex}>{currentIndex}</button>
         </div>
     );
 };
@@ -453,7 +486,19 @@ const styles = {
     cursor: 'pointer',
     zIndex: 1,
   },
-  rightArrow3: {
+  imageWeight: {
+    position: 'absolute',
+    right: '10px',
+    top: '84%',
+    transform: 'translateY(-50%)',
+    fontSize: '2rem',
+    color: '#fff',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    zIndex: 1,
+  },
+  currentIndex: {
     position: 'absolute',
     right: '10px',
     top: '90%',
