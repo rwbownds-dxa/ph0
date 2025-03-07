@@ -19,7 +19,7 @@ console.log ('standardImages: ', standardImages);
 const images = [...newImages, ...standardImages];
 const initialWeights = [...Array(newImages.length).fill(20), ...Array(standardImages.length).fill(1)];
 
-console.log('images: ', images);
+// console.log('images: ', images);
 
 const ImageCarousel = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -212,7 +212,7 @@ const ImageCarousel = () => {
     // EVENT HANDLERS FOR KEYS
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const handleKeyDown = (event) => {
+    const handleKeyDown = async (event) => {
         if (event.key === "ArrowRight") {
             nextImage();
         } else if (event.key === "ArrowLeft") {
@@ -251,6 +251,27 @@ const ImageCarousel = () => {
         } else if (event.key === 'n') {   
             goToIndex();
 
+        // LOAD from filename
+        } else if (event.key === 'l') {
+            const fileName = prompt("Enter the name of the file to load:");
+            if (!fileName) {
+                alert("Filename is required.");
+                return;
+            }   
+            const index = images.findIndex((path) => {
+                const fullPath = path.split('/').pop();
+                const baseName = fullPath.split('.')[0];
+                const extension = fullPath.split('.').pop();
+                return `${baseName}.${extension}` === fileName;
+            });
+            if (index !== -1) {
+                setCurrentIndex(index);
+                setPrevImages((prevImages) => [...prevImages, index]);
+            } else {
+                alert("File not found.");
+            }   
+
+            
          // SAVE FILE: current image to the disk
         } else if (event.key === 's') {  
             saveImage(currentIndex);
@@ -288,7 +309,98 @@ const ImageCarousel = () => {
             });
 
         // Set the weight of the current image
-        } else if (event.key === "w") { setWeightForCurrentImage(); }
+        } else if (event.key === "w") { setWeightForCurrentImage(); 
+        } else if (event.key === 'q') {   // increase weight of current image by 20
+            setImageWeights((prevWeights) => {
+                const newWeights = [...prevWeights];
+                newWeights[currentIndex] += 20;
+                return newWeights;
+            });
+        } else if (event.key === 'e') {   // decrease weight of current image by 20   
+            setImageWeights((prevWeights) => {
+                const newWeights = [...prevWeights];
+                newWeights[currentIndex] -= 20;
+                return newWeights;
+            }
+        );
+
+        // SAVE WEIGHTS
+        } else if (event.key === 'a') {
+            // save current weights to local storage
+            // prompt user for a name
+            const name = prompt("Enter a name for the weights. start with f- to load from file:");   
+            if (name === null || name.trim() === "") {
+                alert("Name is required.");
+                return; 
+            }
+            const weights = imageWeights.map((weight, index) => {       
+                const fullPath = images[index];
+                const fileName = fullPath.split('/').pop();
+                const baseName = fileName.split('.')[0];
+                const extension = fileName.split('.').pop();
+                return { name: `${baseName}.${extension}`, weight };
+            });
+            // if the name begins with 'f-', save the weights to a file
+            if (name.startsWith('f-')) {
+                const fileName = name.substring(2);
+                const blob = new Blob([JSON.stringify(weights)], { type: 'application/json' }); 
+                saveAs(blob, fileName);
+            } else {    
+                localStorage.setItem(name, JSON.stringify(weights));
+            }   
+
+                // localStorage.setItem('imageWeights', JSON.stringify(imageWeights));
+
+        // LOAD WEIGHTS        
+        } else if (event.key === 'd') {    
+
+            const name = prompt("Enter the name of the weights to load:");
+            if (!name) {
+                alert("Name is required.");
+                return;
+            }
+            
+            let weights;
+
+            // if the name begins with 'f-', load the weights from a file. put the weights in the weights variable
+            if (name.startsWith('f-')) {
+                const fileName = name.substring(2) + '.json';
+                const response = await fetch(fileName);
+                console.log('fileName:', fileName);
+                console.log('response:', response);
+
+                const data = await response.json();
+                weights = data;
+            
+            } else {
+            weights = JSON.parse(localStorage.getItem(name));
+            }
+            
+            if (weights) {
+                const newWeights = Array(images.length).fill(1);
+                weights.forEach((weight) => {
+                    const index = images.findIndex((path) => {
+                        const fullPath = path.split('/').pop();
+                        const baseName = fullPath.split('.')[0];
+                        const extension = fullPath.split('.').pop();
+                        return `${baseName}.${extension}` === weight.name;
+                    });
+                    if (index !== -1) {
+                        newWeights[index] = weight.weight;
+                    }
+                });
+                setImageWeights(newWeights);
+            } else {
+                alert("Weights not found.");
+            }
+            
+            /* const savedWeights = localStorage.getItem('imageWeights');
+            if (savedWeights) {
+                setImageWeights(JSON.parse(savedWeights));
+            } else {
+                alert('No saved weights found.');
+            } */
+        }
     
     };
     
@@ -346,6 +458,19 @@ const ImageCarousel = () => {
         }
     };
 
+
+    // COPY FILE NAME TO CLIPBOARD
+
+    const copyFileNameToClipboard = () => {
+        const fullPath = images[currentIndex].split('/').pop();
+        const baseName = fullPath.split('.')[0];
+        const extension = fullPath.split('.').pop();
+        const fullFileName = `${baseName}.${extension}`;
+        // For example, copy the filename to the clipboard:
+        navigator.clipboard.writeText(fullFileName)
+            .then(() => console.log(`Copied ${fullFileName} to clipboard`))
+            .catch((err) => console.error('Failed to copy file name:', err));
+    };
 
 
     // INDEX CHANGE USE EFFECT
@@ -422,6 +547,7 @@ const ImageCarousel = () => {
             <button onClick={nextImage} style={styles.rightArrow}>{">"}</button>
             <button onClick={gobackImage} style={styles.leftArrow2}>{"<<"}</button>
             <button onClick={randomImage} style={styles.rightArrow2}>{">>"}</button>
+            <button onClick={copyFileNameToClipboard} style={styles.fileName}>{images[currentIndex].split('/').pop().split('.')[0]}</button>
             <button onClick={test} style={styles.imageWeight}>{imageWeights[currentIndex]}</button>
             <button onClick={test} style={styles.currentIndex}>{currentIndex}</button>
         </div>
@@ -487,6 +613,18 @@ const styles = {
     position: 'absolute',
     right: '10px',
     top: '60%',
+    transform: 'translateY(-50%)',
+    fontSize: '2rem',
+    color: '#fff',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    zIndex: 1,
+  },
+  fileName: {
+    position: 'absolute',
+    right: '10px',
+    top: '78%',
     transform: 'translateY(-50%)',
     fontSize: '2rem',
     color: '#fff',
