@@ -209,16 +209,96 @@ const ImageCarousel = () => {
     };
 
 
-    // EVENT HANDLERS FOR KEYS
+    // SAVE WEIGHTS FUNCTION
+
+    const saveWeights = () => {
+        const name = prompt("Enter a name for the weights. start with f- to load from file:");   
+            if (name === null || name.trim() === "") {
+                alert("Name is required.");
+                return; 
+            }
+            const weights = imageWeights.map((weight, index) => {       
+                const fullPath = images[index];
+                const fileName = fullPath.split('/').pop();
+                const baseName = fileName.split('.')[0];
+                const extension = fileName.split('.').pop();
+                return { name: `${baseName}.${extension}`, weight };
+            });
+            // if the name begins with 'f-', save the weights to a file
+            if (name.startsWith('f-')) {
+                const fileName = name.substring(2);
+                const blob = new Blob([JSON.stringify(weights)], { type: 'application/json' }); 
+                saveAs(blob, fileName);
+            } else {    
+                localStorage.setItem(name, JSON.stringify(weights));
+            }   
+    };
+
+
+    // LOAD WEIGHTS FUNCTION
+
+    const loadWeights = async () => {
+        const name = prompt("Enter the name of the weights to load:");
+        if (!name) {
+            alert("Name is required.");
+            return;
+        }
+        
+        let weights;
+        
+        // if name=1, set all weights to 1
+        if (name === '1') {
+            setImageWeights(Array(images.length).fill(1));
+            return;
+        }
+        
+        // if the name begins with 'f-', load the weights from a file. put the weights in the weights variable
+        if (name.startsWith('f-')) {
+            const fileName = name.substring(2) + '.json';
+            const response = await fetch(fileName);
+            console.log('fileName:', fileName);
+            console.log('response:', response);
+
+            const data = await response.json();
+            weights = data;
+        
+        } else {
+        weights = JSON.parse(localStorage.getItem(name));
+        }
+        
+        if (weights) {
+            const newWeights = Array(images.length).fill(1);
+            weights.forEach((weight) => {
+                const index = images.findIndex((path) => {
+                    const fullPath = path.split('/').pop();
+                    const baseName = fullPath.split('.')[0];
+                    const extension = fullPath.split('.').pop();
+                    return `${baseName}.${extension}` === weight.name;
+                });
+                if (index !== -1) {
+                    newWeights[index] = weight.weight;
+                }
+            });
+            setImageWeights(newWeights);
+        } else {
+            alert("Weights not found.");
+        }
+    };
+
+    // ---------  EVENT HANDLERS FOR KEYS ------------
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleKeyDown = async (event) => {
+
         if (event.key === "ArrowRight") {
             nextImage();
+        
         } else if (event.key === "ArrowLeft") {
             prevImage();
+        
         } else if (event.key === "ArrowUp" ) {
             randomImage();
+        
         } else if (event.key === "ArrowDown") {
             gobackImage();
 
@@ -249,28 +329,11 @@ const ImageCarousel = () => {
 
         // GO TO a specific image index
         } else if (event.key === 'n') {   
-            goToIndex();
+            goToIndex();    
 
         // LOAD from filename
         } else if (event.key === 'l') {
-            const fileName = prompt("Enter the name of the file to load:");
-            if (!fileName) {
-                alert("Filename is required.");
-                return;
-            }   
-            const index = images.findIndex((path) => {
-                const fullPath = path.split('/').pop();
-                const baseName = fullPath.split('.')[0];
-                const extension = fullPath.split('.').pop();
-                return `${baseName}.${extension}` === fileName;
-            });
-            if (index !== -1) {
-                setCurrentIndex(index);
-                setPrevImages((prevImages) => [...prevImages, index]);
-            } else {
-                alert("File not found.");
-            }   
-
+            goToFilename();
             
          // SAVE FILE: current image to the disk
         } else if (event.key === 's') {  
@@ -326,83 +389,17 @@ const ImageCarousel = () => {
 
         // SAVE WEIGHTS
         } else if (event.key === 'a') {
-            // save current weights to local storage
-            // prompt user for a name
-            const name = prompt("Enter a name for the weights. start with f- to load from file:");   
-            if (name === null || name.trim() === "") {
-                alert("Name is required.");
-                return; 
-            }
-            const weights = imageWeights.map((weight, index) => {       
-                const fullPath = images[index];
-                const fileName = fullPath.split('/').pop();
-                const baseName = fileName.split('.')[0];
-                const extension = fileName.split('.').pop();
-                return { name: `${baseName}.${extension}`, weight };
-            });
-            // if the name begins with 'f-', save the weights to a file
-            if (name.startsWith('f-')) {
-                const fileName = name.substring(2);
-                const blob = new Blob([JSON.stringify(weights)], { type: 'application/json' }); 
-                saveAs(blob, fileName);
-            } else {    
-                localStorage.setItem(name, JSON.stringify(weights));
-            }   
-
-                // localStorage.setItem('imageWeights', JSON.stringify(imageWeights));
+            saveWeights();
 
         // LOAD WEIGHTS        
         } else if (event.key === 'd') {    
-
-            const name = prompt("Enter the name of the weights to load:");
-            if (!name) {
-                alert("Name is required.");
-                return;
-            }
-            
-            let weights;
-
-            // if the name begins with 'f-', load the weights from a file. put the weights in the weights variable
-            if (name.startsWith('f-')) {
-                const fileName = name.substring(2) + '.json';
-                const response = await fetch(fileName);
-                console.log('fileName:', fileName);
-                console.log('response:', response);
-
-                const data = await response.json();
-                weights = data;
-            
-            } else {
-            weights = JSON.parse(localStorage.getItem(name));
-            }
-            
-            if (weights) {
-                const newWeights = Array(images.length).fill(1);
-                weights.forEach((weight) => {
-                    const index = images.findIndex((path) => {
-                        const fullPath = path.split('/').pop();
-                        const baseName = fullPath.split('.')[0];
-                        const extension = fullPath.split('.').pop();
-                        return `${baseName}.${extension}` === weight.name;
-                    });
-                    if (index !== -1) {
-                        newWeights[index] = weight.weight;
-                    }
-                });
-                setImageWeights(newWeights);
-            } else {
-                alert("Weights not found.");
-            }
-            
-            /* const savedWeights = localStorage.getItem('imageWeights');
-            if (savedWeights) {
-                setImageWeights(JSON.parse(savedWeights));
-            } else {
-                alert('No saved weights found.');
-            } */
+            loadWeights();
         }
     
     };
+
+
+    // LOAD IMAGE FROM INDEX
     
     const goToIndex = () => {
         const userInput = prompt("Enter an image index:");
@@ -416,6 +413,28 @@ const ImageCarousel = () => {
             alert("Invalid index. Please enter a number between 0 and " + (images.length - 1));
         }
     };
+
+
+    // LOAD IMAGE FROM FILENAME
+
+    const goToFilename = () => {
+        const userInput = prompt("Enter an image filename:");
+        const index = images.findIndex((path) => {
+            const fullPath = path.split('/').pop();
+            const baseName = fullPath.split('.')[0];
+            const extension = fullPath.split('.').pop();
+            return `${baseName}.${extension}` === userInput;
+        });
+        if (index !== -1) { 
+            setCurrentIndex(index);
+            setPrevImages((prevImages) => [...prevImages, index]);
+        } else {
+            alert("File not found.");
+        }
+    };
+
+
+    // SAVE IMAGE TO DISK   
 
     const saveImage = async ( index ) => {
 
@@ -471,6 +490,15 @@ const ImageCarousel = () => {
             .then(() => console.log(`Copied ${fullFileName} to clipboard`))
             .catch((err) => console.error('Failed to copy file name:', err));
     };
+
+
+    // COPY INDEX TO CLIPBOARD
+
+    const copyIndexToClipboard = () => {
+        navigator.clipboard.writeText(currentIndex) 
+            .then(() => console.log(`Copied ${currentIndex} to clipboard`))
+            .catch((err) => console.error('Failed to copy index:', err));
+    }
 
 
     // INDEX CHANGE USE EFFECT
@@ -549,7 +577,7 @@ const ImageCarousel = () => {
             <button onClick={randomImage} style={styles.rightArrow2}>{">>"}</button>
             <button onClick={copyFileNameToClipboard} style={styles.fileName}>{images[currentIndex].split('/').pop().split('.')[0]}</button>
             <button onClick={test} style={styles.imageWeight}>{imageWeights[currentIndex]}</button>
-            <button onClick={test} style={styles.currentIndex}>{currentIndex}</button>
+            <button onClick={copyIndexToClipboard} style={styles.currentIndex}>{currentIndex}</button>
         </div>
     );
 };
