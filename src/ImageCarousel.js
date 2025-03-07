@@ -12,14 +12,27 @@ try {
     console.error("Error loading images from imgNew:", error);
 }
 console.log('newImages: ', newImages);
+
 // Import all images from the src/img directory
 const standardImages = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
 console.log ('standardImages: ', standardImages);
+
 // Combine the images and assign weights
-const images = [...newImages, ...standardImages];
+let images = [...newImages, ...standardImages];
 const initialWeights = [...Array(newImages.length).fill(20), ...Array(standardImages.length).fill(1)];
 
-// console.log('images: ', images);
+// Import all images from the src/imgSav subdirectories
+// use the subdirectory name as a key to this array
+// so there is one array for each subdirectory
+
+let savedImages = [];
+try {
+    savedImages = require.context("./imgSav", true, /\/[^/]+$/).keys().map((path) => path.replace('./', ''));
+} catch (error) {
+    console.error("Error loading savedImages:", error);
+}
+console.log('savedImages:', savedImages);
+
 
 const ImageCarousel = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -394,6 +407,66 @@ const ImageCarousel = () => {
         // LOAD WEIGHTS        
         } else if (event.key === 'd') {    
             loadWeights();
+        }
+
+        // VIEW IMAGES FROM SELECT SAVED IMAGES
+        else if (event.key === 'v') {
+            // prompt user for the subdirectory name
+            const subDir = prompt("Enter the subdirectory name to view images:");
+            if (subDir === null || subDir.trim() === "") {
+                alert("Subdirectory name is required.");
+                return;
+            }
+            // find the images using savedImages array
+            let subImages = savedImages.filter((path) => path.includes(subDir));
+            console.log('Subdirectory images:', subImages);
+            
+            // remove the subdirectory name from the path
+            subImages = subImages.map((path) => path.replace(subDir, ''));
+            // remove the first character which is a '/'
+            subImages = subImages.map((path) => path.substring(1))
+            
+            // find subImages in the images array. put these in an index array
+            let subIndexes = [];
+            subImages.forEach((path) => {
+                // strip the extension before comparing
+                path = path.split('.')[0];
+                const index = images.findIndex((image) => image.includes(path));
+                if (index !== -1) {
+                    subIndexes.push(index);
+                }
+            });
+            
+            // use the subIndexes array to find the images in the images array
+            subImages = subIndexes.map((index) => images[index]);
+            
+            // set the weights for the subImages to a value specified by user. use subIndexes
+            const weight = prompt("Enter a weight for the subdirectory images:", "8888");
+            if (weight === null || weight.trim() === "") {
+                alert("Weight is required.");
+                return;
+            }
+            const weightValue = parseInt(weight, 10);
+            console.log('Weight:', weightValue);
+            setImageWeights((prevWeights) => {
+                const newWeights = [...prevWeights];
+                subIndexes.forEach((index) => {
+                    newWeights[index] = weightValue;
+                });
+                return newWeights;
+            });
+            
+
+            /* set the images to the subdirectory images
+            images = subImages; 
+            // set the currentIndex to the first image in the subdirectory
+            setCurrentIndex(0);
+            // set the previous images array to the first image index
+            setPrevImages([0]);
+            */
+
+
+
         }
     
     };
