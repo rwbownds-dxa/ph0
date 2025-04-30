@@ -1,24 +1,34 @@
 import React, { useState, useEffect } from "react";
 import { saveAs } from 'file-saver';
+import './ImageCarousel.css';
 
 // Import all images from the src/img directory
 // const images = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
 
 // Import all images from the src/imgNew directory
 let newImages = [];
+let imageFileNames = [];
+
 try {
-    newImages = require.context("./imgNew", false, /\.(jpg|gif)$/).keys().map((path) => require(`./imgNew/${path.replace('./', '')}`));
+    newImages = require.context("./imgNew", false, /\.(jpg|gif|png)$/).keys().map((path) => require(`./imgNew/${path.replace('./', '')}`));
+
 } catch (error) {
     console.error("Error loading images from imgNew:", error);
 }
 console.log('newImages: ', newImages);
 
 // Import all images from the src/img directory
-const standardImages = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
+const standardImages = require.context("./img", false, /\.(jpg|gif|png)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
 console.log ('standardImages: ', standardImages);
 
 // Combine the images and assign weights
 let images = [...newImages, ...standardImages];
+
+// store the filenames in an array for later use
+imageFileNames = images.map((image) => image.split('/').pop());
+    console.log('Filenames:', imageFileNames);
+
+// set initial weights to 1
 const initialWeights = [...Array(newImages.length).fill(20), ...Array(standardImages.length).fill(1)];
 
 // Import all images from the src/imgSav subdirectories
@@ -34,7 +44,12 @@ try {
 console.log('savedImages:', savedImages);
 
 
-const ImageCarousel = () => {
+const ImageCarousel = ({ state }) => {
+
+    console.log( 'isMobile:' + state.isMobile )
+
+    // STATE VARIABLES ----------------------------------
+
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isRandomPlay, setIsRandomPlay] = useState(false);
     const [zoom, setZoom] = useState(100);
@@ -47,6 +62,110 @@ const ImageCarousel = () => {
     const [isStackRandomPlay, setIsStackRandomPlay] = useState(false); // Track if stack random play is active
     const [imageWeights, setImageWeights] = useState(initialWeights); // Initialize weights to 1 for each image
     
+
+    // STYLES -------------------------------------
+
+    const styles = {
+        container: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            width: '100vw',
+            overflow: 'auto',
+            backgroundColor: '#000',
+            position: 'relative',
+        },
+        image: {
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',  // Ensures the image covers the entire window while maintaining aspect ratio
+        },
+        leftArrow: {
+          left: '10px',
+          top: '50%',
+        },
+        rightArrow: {
+            right: '10px',
+            top: '50%',
+        },
+        leftArrow2: {
+            left: '10px',
+            top: '65%',
+        },
+        rightArrow2: {
+            right: '10px',
+            top: '60%',
+        },
+        fileName: {
+            right: '10px',
+            top: '78%',
+        },
+        imageWeight: {
+            right: '10px',
+            top: '84%',
+        },
+        currentIndex: {
+            right: '10px',
+            top: '90%',
+        },
+        randomButton: {
+            left: '10px',
+            top: '78%', 
+        },
+        weightButton: {
+            left: '10px',
+            top: '84%', 
+        },
+        setWeightButton: {
+            left: '10px',
+            top: '90%', 
+        },
+        loadSub: {
+            left: '10px',
+            top: '95%', 
+        },
+        partialButton: {
+            left: '10px',
+            top: '25%', 
+        },
+    };
+    
+    // MOBILE STYLES
+    if ( state.isMobile ) {
+        styles.leftArrow.fontSize = '1.5rem';
+        styles.leftArrow2.fontSize = '1.7rem';
+        styles.rightArrow.fontSize = '1.5rem';
+        styles.rightArrow2.fontSize = '1.7rem';
+        styles.currentIndex.fontSize = '1rem';
+        styles.weightButton.fontSize = '1.5rem';
+        styles.randomButton.fontSize = '1.5rem';
+        styles.leftArrow.fontSize = '1.5rem';
+        styles.fileName.fontSize = '1rem';
+        styles.imageWeight.fontSize = '1rem';
+        styles.weightButton.fontSize = '1rem';
+        styles.setWeightButton.fontSize = '1rem';
+        styles.loadSub.fontSize = '1rem';
+        styles.leftArrow.top = '10%';
+        styles.leftArrow2.top = '50%';
+        styles.randomButton.top = '65%';
+        styles.setWeightButton.top = '76%';
+        styles.weightButton.top = '85%';
+        
+        styles.rightArrow.top = '10%';
+        styles.rightArrow2.top = '50%';
+        styles.currentIndex.top = '80%';
+        styles.imageWeight.top = '87%';
+        styles.fileName.top = '95%';
+
+        
+        
+
+    }
+
+
+    // FUNCTIONS ----------------------------------
+
     const nextImage = () => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
     };
@@ -250,21 +369,25 @@ const ImageCarousel = () => {
 
     // LOAD WEIGHTS FUNCTION
 
-    const loadWeights = async () => {
-        const name = prompt("Enter the name of the weights to load:");
+    const loadWeights = async ( ) => {
+        const name = prompt("Enter the name of the weights to load:", "f-Main");
         if (!name) {
             alert("Name is required.");
             return;
         }
         
-        let weights;
+        let weightsFromFile;
         
         // if name=1, set all weights to 1
         if (name === '1') {
             setImageWeights(Array(images.length).fill(1));
             return;
         }
-        
+
+        let merge = true
+        const mergeResp = prompt("Merge weights? (y/n):", "y");
+        if (mergeResp === 'n' || mergeResp === 'N') { merge = false; }       
+
         // if the name begins with 'f-', load the weights from a file. put the weights in the weights variable
         if (name.startsWith('f-')) {
             const fileName = name.substring(2) + '.json';
@@ -273,15 +396,15 @@ const ImageCarousel = () => {
             console.log('response:', response);
 
             const data = await response.json();
-            weights = data;
+            weightsFromFile = data;
         
         } else {
-        weights = JSON.parse(localStorage.getItem(name));
+        weightsFromFile = JSON.parse(localStorage.getItem(name));
         }
-        
-        if (weights) {
-            const newWeights = Array(images.length).fill(1);
-            weights.forEach((weight) => {
+        console.log('Merge:', merge);
+        if (weightsFromFile) {
+            const newWeights = imageWeights.slice(); // Create a copy of the current weights
+            weightsFromFile.forEach((weight) => {
                 const index = images.findIndex((path) => {
                     const fullPath = path.split('/').pop();
                     const baseName = fullPath.split('.')[0];
@@ -289,7 +412,10 @@ const ImageCarousel = () => {
                     return `${baseName}.${extension}` === weight.name;
                 });
                 if (index !== -1) {
-                    newWeights[index] = weight.weight;
+                    if (index === 1) { 
+                        console.log('Index:', index, 'Weight:', weight.weight, 'Current Weight:', imageWeights[index]); }
+                        console.log()
+                    newWeights[index] = merge ? Math.max(imageWeights[index], weight.weight) : weight.weight;
                 }
             });
             setImageWeights(newWeights);
@@ -298,7 +424,121 @@ const ImageCarousel = () => {
         }
     };
 
-    // ---------  EVENT HANDLERS FOR KEYS ------------
+
+    // RANDOM PLAY FUNCTION
+
+    const randomPlay = (ask = false) => {
+        if (ask && !isRandomPlay) {
+            const intervalInput = prompt("Enter interval time in seconds for random play:", "5");
+            const intervalTime = parseInt(intervalInput, 10) > 0 ? parseInt(intervalInput, 10) * 1000 : 5000;
+            setRandomPlayInterval(intervalTime);
+            setIsRandomPlay(true);
+            console.log('Random play activated')
+        } else {
+            console.log('setting random play to:', !isRandomPlay);
+            setIsRandomPlay(prev => !prev);
+        }
+    };
+
+
+    // FLATTEN WEIGHTS FUNCTION
+
+    const flattenWeights = () => {
+        // for all weights > 1, set them equal to a number given by the user (prompt)
+        const weight = prompt("Enter a weight for all images with a weight > 1:", "21");
+        if (weight === null || weight.trim() === "") { alert("Weight is required."); return; }
+        const weightValue = parseInt(weight, 10);
+        if ( isNaN(weightValue) ) { alert("Invalid weight. Please enter a number."); return; }
+        
+        setImageWeights((prevWeights) => {
+            const newWeights = [...prevWeights];
+            newWeights.forEach((w, index) => {
+                if (w > 1) {
+                    newWeights[index] = weightValue;
+                }
+            });
+            return newWeights;
+        });
+    };
+
+
+    // COMPRESS WEIGHTS FUNCTION
+
+    const compressWeights = () => {
+        // set maxWeight to the highest weight in the imageWeights array
+        const maxWeight = Math.max(...imageWeights);
+        // get compression ratio from user. give user the maxWeight as a reference
+        const ratio = prompt(`Enter a compression ratio in % (maxWeight = ${maxWeight}):`, "80");
+        if (ratio === null || ratio.trim() === "") { alert("Ratio is required."); return; }
+        const ratioValue = parseInt(ratio, 10);
+        if ( isNaN(ratioValue) ) { alert("Invalid ratio. Please enter a number."); return; }
+        // calculate the new weight for each image. only adjust weights > 1 and all weights must be integers (round)
+        setImageWeights((prevWeights) => {
+            const newWeights = [...prevWeights];
+            newWeights.forEach((w, index) => {
+                if (w > 1) {
+                    newWeights[index] = Math.round(w * ratioValue / 100);
+                }
+            });
+            return newWeights;
+        });
+    };
+
+
+    // INVERT WEIGHTS FUNCTION
+
+    const invertWeights = () => {
+        // for all weights > 1, set them equal to one
+        // for all weights == 1, set them equal to a number given by the user (prompt)
+        const weight = prompt("Enter a weight for all images with a weight = 1:", "21");
+        if (weight === null || weight.trim() === "") { alert("Weight is required."); return; }
+        
+        const weightValue = parseInt(weight, 10);
+        if ( isNaN(weightValue) ) { alert("Invalid weight. Please enter a number."); return; }
+        
+        setImageWeights((prevWeights) => {
+            const newWeights = [...prevWeights];
+            newWeights.forEach((w, index) => {
+                if (w > 1) {
+                    newWeights[index] = 1;
+                } else {
+                    newWeights[index] = weightValue;
+                }
+            });
+            return newWeights;
+        });
+    };
+
+
+    // RANDOMIZE WEIGHTS FUNCTION
+
+    const randomizeWeights = () => {
+        // prompt user for a max weight. set all weights to a random number between 1 and maxWeight
+        let maxWeight = prompt("Enter a maximum weight:", "100");
+        if (maxWeight === null || maxWeight.trim() === "") { alert("Max weight is required."); return; }
+        maxWeight = parseInt(maxWeight, 10); 
+        setImageWeights((prevWeights) => {
+            const newWeights = [...prevWeights];
+            newWeights.forEach((w, index) => {
+                newWeights[index] = Math.floor(Math.random() * maxWeight) + 1;
+            });
+            return newWeights;
+        });
+    };
+
+
+    // HIDE BUTTONS FUNCTION
+    
+    const toggleHideButtons = () => {
+        const buttons = document.querySelectorAll('.action-button');
+        buttons.forEach((button) => {
+            button.style.display = button.style.display === 'none' ? 'block' : 'none';
+        });
+    };
+
+    // -----------------------------------------------
+    //            EVENT HANDLERS FOR KEYS 
+    // -----------------------------------------------
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleKeyDown = async (event) => {
@@ -317,7 +557,7 @@ const ImageCarousel = () => {
 
         // random play slideshow
         } else if (event.key === "r") {
-            setIsRandomPlay((prev) => !prev);
+            randomPlay();
 
         // random play from image stack
         } else if (event.key === "t") {
@@ -384,7 +624,7 @@ const ImageCarousel = () => {
                 return newIndex;
             });
 
-        // Set the weight of the current image
+        // SET WEIGHT of the current image
         } else if (event.key === "w") { setWeightForCurrentImage(); 
         } else if (event.key === 'q') {   // increase weight of current image by 20
             setImageWeights((prevWeights) => {
@@ -409,8 +649,29 @@ const ImageCarousel = () => {
             loadWeights();
         }
 
+        // FLATTEN WEIGHTS
+        else if (event.key === 'f') {
+            flattenWeights();
+        }
+
+        // COMPRESS WEIGHTS
+        else if (event.key === 'g') {
+            compressWeights();
+        }
+
+        // INVERT WEIGHTS
+        else if (event.key === 'h') {
+            invertWeights();
+        }
+
+        // RANDOMIZE WEIGHTS
+        else if (event.key === '@') {
+            randomizeWeights();
+        }
+
         // VIEW IMAGES FROM SELECT SAVED IMAGES
         else if (event.key === 'v') {
+            loadSubdirectory();
             // prompt user for the subdirectory name
             const subDir = prompt("Enter the subdirectory name to view images:");
             if (subDir === null || subDir.trim() === "") {
@@ -441,7 +702,7 @@ const ImageCarousel = () => {
             subImages = subIndexes.map((index) => images[index]);
             
             // set the weights for the subImages to a value specified by user. use subIndexes
-            const weight = prompt("Enter a weight for the subdirectory images:", "8888");
+            const weight = prompt("Enter a weight for the subdirectory images:", "10");
             if (weight === null || weight.trim() === "") {
                 alert("Weight is required.");
                 return;
@@ -456,21 +717,26 @@ const ImageCarousel = () => {
                 return newWeights;
             });
             
-
-            /* set the images to the subdirectory images
-            images = subImages; 
-            // set the currentIndex to the first image in the subdirectory
-            setCurrentIndex(0);
-            // set the previous images array to the first image index
-            setPrevImages([0]);
-            */
-
-
-
         }
+
+        // HIDE BUTTONS
+        else if (event.key === 'b') {
+            toggleHideButtons();
+        }
+
+        // CLOSE THE APP
+        else if (event.key === 'Escape') {
+            window.close();
+        }
+        // TESTING
     
     };
 
+    
+    
+    // -----------------------------------------------
+    //
+    // -----------------------------------------------
 
     // LOAD IMAGE FROM INDEX
     
@@ -533,7 +799,7 @@ const ImageCarousel = () => {
     // SET WEIGHT FOR CURRENT IMAGE
 
     const setWeightForCurrentImage = () => {
-        const weight = prompt("Enter a weight for the current image:");
+        const weight = prompt("Enter a weight for the current image:","11");
         if (weight === null || weight.trim() === "") {
             alert("Weight is required.");
             return;
@@ -573,6 +839,94 @@ const ImageCarousel = () => {
             .catch((err) => console.error('Failed to copy index:', err));
     }
 
+
+    // LOAD SUBDIRECTORY
+    const loadSubdirectory = () => {
+        const subDir = prompt("Enter the subdirectory name to view images:");
+        if (subDir === null || subDir.trim() === "") {
+            alert("Subdirectory name is required.");
+            return;
+        }
+        // find the images using savedImages array
+        let subImages = savedImages.filter((path) => path.includes(subDir));
+        console.log('Subdirectory images:', subImages);
+        
+        // remove the subdirectory name from the path
+        subImages = subImages.map((path) => path.replace(subDir, ''));
+        // remove the first character which is a '/'
+        subImages = subImages.map((path) => path.substring(1))
+        
+        // find subImages in the images array. put these in an index array
+        let subIndexes = [];
+        subImages.forEach((path) => {
+            // strip the extension before comparing
+            path = path.split('.')[0];
+            // if the path includes a subdirectory name, remove it
+            const subDirName = path.split('/')[0];
+            console.log('subDirName:', subDirName);
+            console.log('path:', path);
+            // path = path.replace(subDirName, '');
+            
+            const index = images.findIndex((image) => image.includes(path));
+            if (index !== -1) {
+                subIndexes.push(index);
+            }
+        });
+        
+        // use the subIndexes array to find the images in the images array
+        subImages = subIndexes.map((index) => images[index]);
+        
+        // set the weights for the subImages to a value specified by user. use subIndexes
+        const weight = prompt("Enter a weight for the subdirectory images:", "10");
+        if (weight === null || weight.trim() === "") {
+            alert("Weight is required.");
+            return;
+        }
+        const weightValue = parseInt(weight, 10);
+        console.log('Weight:', weightValue);
+        setImageWeights((prevWeights) => {
+            const newWeights = [...prevWeights];
+            subIndexes.forEach((index) => {
+                newWeights[index] = weightValue;
+            });
+            return newWeights;
+        });
+
+    }
+
+
+    // LOAD FROM PARTIAL FILENAME
+    const loadFromPartialFilename = () => {
+        const partialName = prompt("Enter a partial filename to load images:");
+        if (partialName === null || partialName.trim() === "") {
+            alert("Partial filename is required.");
+            return;
+        }
+        const filteredImages = images.filter((path) => path.includes(partialName));
+        // set the weights for the filteredImages to a value specified by user
+        const weight = prompt("Enter a weight for the filtered images:", "10");
+        if (weight === null || weight.trim() === "") {
+            alert("Weight is required.");
+            return;
+        }
+        const weightValue = parseInt(weight, 10);
+        console.log('Weight:', weightValue);
+        setImageWeights((prevWeights) => {
+            const newWeights = [...prevWeights];
+            filteredImages.forEach((image) => {
+                const index = images.indexOf(image);
+                if (index !== -1) {
+                    newWeights[index] = weightValue;
+                }
+            });
+            return newWeights;
+        });
+        // put it on the stack?
+        // setImageStack(filteredImages.map((image) => images.indexOf(image)));
+    };
+
+
+    // ----  USE EFFECTS -------------------------------
 
     // INDEX CHANGE USE EFFECT
 
@@ -644,120 +998,31 @@ const ImageCarousel = () => {
     return (
         <div id="img-container" style={styles.container}>
             <img src={images[currentIndex]} alt="carousel" style={styles.image} />
-            <button onClick={prevImage} style={styles.leftArrow}>{"<"}</button>
-            <button onClick={nextImage} style={styles.rightArrow}>{">"}</button>
-            <button onClick={gobackImage} style={styles.leftArrow2}>{"<<"}</button>
-            <button onClick={randomImage} style={styles.rightArrow2}>{">>"}</button>
-            <button onClick={copyFileNameToClipboard} style={styles.fileName}>{images[currentIndex].split('/').pop().split('.')[0]}</button>
-            <button onClick={test} style={styles.imageWeight}>{imageWeights[currentIndex]}</button>
-            <button onClick={copyIndexToClipboard} style={styles.currentIndex}>{currentIndex}</button>
+            <button onClick={loadFromPartialFilename} className='action-button' style={styles.partialButton}>{"pf"}</button>
+            <button onClick={prevImage} className='action-button' style={styles.leftArrow}>{"<"}</button>
+            <button onClick={randomPlay} className='action-button' style={styles.randomButton}>{"R"}</button>
+            { state.isMobile ? ( <>
+                <button onClick={loadWeights} className="action-button" style={styles.weightButton}>{"lw"}</button>
+                <button onClick={setWeightForCurrentImage} className="action-button" style={styles.setWeightButton}>{"sw"}</button>
+                <button onClick={loadSubdirectory}className="action-button" style={styles.loadSub}>{"sb"}</button>
+                </>
+            ) : (
+                <button onClick={loadWeights} className="action-button" style={styles.weightButton}>{"W"}</button>
+            )}
+            <button onClick={nextImage} className='action-button' style={styles.rightArrow}>{">"}</button>
+            <button onClick={gobackImage} className='action-button' style={styles.leftArrow2}>{"<<"}</button>
+            <button onClick={randomImage} className='action-button' style={styles.rightArrow2}>{">>"}</button>
+            <button onClick={copyFileNameToClipboard} className='action-button' style={styles.fileName}>{images[currentIndex].split('/').pop().split('.')[0]}</button>
+            <button onClick={test} className='action-button' style={styles.imageWeight}>{imageWeights[currentIndex]}</button>
+            <button onClick={copyIndexToClipboard} className='action-button' style={styles.currentIndex}>{currentIndex}</button>
         </div>
     );
+
+
+
+// STYLE DEFINITIONS AT TOP
+
+
+
 };
-
-
-// STYLE DEFINITIONS
-
-const styles = {
-    container: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        width: '100vw',
-        overflow: 'auto',
-        backgroundColor: '#000',
-        position: 'relative',
-    },
-    image: {
-        width: '100%',
-        height: '100%',
-        objectFit: 'contain',  // Ensures the image covers the entire window while maintaining aspect ratio
-    },
-    leftArrow: {
-      position: 'absolute',
-      left: '10px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      fontSize: '2rem',
-      color: '#fff',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      zIndex: 1,
-  },
-  rightArrow: {
-      position: 'absolute',
-      right: '10px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      fontSize: '2rem',
-      color: '#fff',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      zIndex: 1,
-  },
-  leftArrow2: {
-    position: 'absolute',
-    right: '10px',
-    top: '65%',
-    transform: 'translateY(-50%)',
-    fontSize: '2rem',
-    color: '#fff',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    zIndex: 1,
-  },
-  rightArrow2: {
-    position: 'absolute',
-    right: '10px',
-    top: '60%',
-    transform: 'translateY(-50%)',
-    fontSize: '2rem',
-    color: '#fff',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    zIndex: 1,
-  },
-  fileName: {
-    position: 'absolute',
-    right: '10px',
-    top: '78%',
-    transform: 'translateY(-50%)',
-    fontSize: '2rem',
-    color: '#fff',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    zIndex: 1,
-  },
-  imageWeight: {
-    position: 'absolute',
-    right: '10px',
-    top: '84%',
-    transform: 'translateY(-50%)',
-    fontSize: '2rem',
-    color: '#fff',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    zIndex: 1,
-  },
-  currentIndex: {
-    position: 'absolute',
-    right: '10px',
-    top: '90%',
-    transform: 'translateY(-50%)',
-    fontSize: '2rem',
-    color: '#fff',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    zIndex: 1,
-  }
-};
-
 export default ImageCarousel;
