@@ -1,0 +1,10 @@
+.action-button {
+    position: absolute;
+    color: white;
+    font-size: 20pt;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
+}

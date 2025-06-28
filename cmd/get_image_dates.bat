@@ -1,0 +1,2 @@
+python get_image_dates.py
+pause
