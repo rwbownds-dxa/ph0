@@ -1036,7 +1036,8 @@ const ImageCarousel = ({ state }) => {
             const interval = setInterval(() => {
                 if (imageStack.length > 0) {
                     const randomIndex = Math.floor(Math.random() * imageStack.length);
-                    setCurrentIndex(imageStack[randomIndex]);
+                    // console.log(imageStack[randomIndex])
+                    setCurrentIndex(findImageIndexByFilename(images, imageStack[randomIndex]));
                 }
             }, randomPlayInterval);
             return () => clearInterval(interval);
