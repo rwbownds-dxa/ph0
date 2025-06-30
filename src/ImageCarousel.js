@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { saveAs } from 'file-saver';
 import './ImageCarousel.css';
+import imageDates from './imgDates.json'
 
-// Import all images from the src/img directory
-// const images = require.context("./img", false, /\.(jpg|gif)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
 
-// Import all images from the src/imgNew directory
+// -----------------------------------------------------------------
+// ----------------  LOAD IMAGES  ----------------------------------
+// -----------------------------------------------------------------
+
 let newImages = [];
 let imageFileNames = [];
 let shortFileNames = [];
+let images = [];
+let imagesWithDates = [];
+let failedImages = [];
 
+
+// ----- SRC/imgNew -----
 try {
     newImages = require.context("./imgNew", false, /\.(jpg|gif|png)$/).keys().map((path) => require(`./imgNew/${path.replace('./', '')}`));
 
@@ -19,21 +26,20 @@ try {
 console.log('newImages: ', newImages);
 
 
-// Import all images from the src/img directory
-const standardImages = require.context("./img", false, /\.(jpg|gif|png)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
+// ----- SRC/img -----
+const standardImages = require.context("./img", false, /\.(BMP|bmp|JPG|webp|jpeg|jpg|gif|png|GIF|PNG)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
 console.log ('standardImages: ', standardImages);
 
 
 // Combine the images and assign weights
-let images = [...newImages, ...standardImages];
+images = [...newImages, ...standardImages];
 
 
-// store the filenames in an array for later use
+// ----- full Filenames -----
 imageFileNames = images.map((image) => image.split('/').pop());
-    console.log('Filenames:', imageFileNames);
+console.log('Filenames:', imageFileNames);
 
-// imageFileNames will look like: {shortfilename}.{long numeral}.extension
-// extract shortFileNames
+// ----- short Filenames -----
 shortFileNames = imageFileNames.map((fileName) => {
     const parts = fileName.split('.');
     // if the fileName has more than 2 parts, remove the next to last only
@@ -44,8 +50,26 @@ shortFileNames = imageFileNames.map((fileName) => {
 });
 console.log('Short Filenames:', shortFileNames);
 
+// ----- image Dates -----
+console.log('imageDates', imageDates)
+for (const [idx, img] of imageDates.entries()) {
+    const filename = img.filename;
+    const date = img.modified;
 
+    // Find the index of the image in the shortFileNames array
+    const index = shortFileNames.indexOf(filename);
+    if (index !== -1) {
+        // If the image is found, update its date
+        imagesWithDates[index] = {
+            src: images[index],
+            date: date
+        }; 
 
+    } else { 
+        failedImages.push([ filename, idx ]);}
+}
+console.log('imagesWithDates:', imagesWithDates);
+//console.log('failedImages:', failedImages);
 
 // set initial weights to 1
 const initialWeights = [...Array(newImages.length).fill(20), ...Array(standardImages.length).fill(1)];
@@ -80,7 +104,10 @@ function findImageIndexByFilename(images, filename) {
 }
 
 
+
+// -----------------------------------------------------------------
 // ---------- MAIN COMPONENT ----------
+// -----------------------------------------------------------------
 const ImageCarousel = ({ state }) => {
 
     console.log( 'isMobile:' + state.isMobile )
@@ -166,6 +193,10 @@ const ImageCarousel = ({ state }) => {
             left: '10px',
             top: '25%', 
         },
+        dateButton: {
+            left: '10px',
+            top: '15%', 
+        }
     };
     
     // MOBILE STYLES
@@ -297,7 +328,8 @@ const ImageCarousel = ({ state }) => {
     const nextPlaylistImage = () => {
         setStackIndex((prevIndex) => {
                         const newIndex = (prevIndex + 1) % imageStack.length;
-                        setCurrentIndex(findImageIndexByFilename(images, imageStack[newIndex]));
+                        if ( imageStack.length > 0 )
+                            setCurrentIndex(findImageIndexByFilename(images, imageStack[newIndex]));
                         console.log('image stack', imageStack)
                         return newIndex;
                     });
@@ -306,7 +338,8 @@ const ImageCarousel = ({ state }) => {
     const prevPlaylistImage = () => {
         setStackIndex((prevIndex) => {
                 const newIndex = prevIndex > 0 ? prevIndex - 1 : imageStack.length - 1;
-                setCurrentIndex(findImageIndexByFilename(images,imageStack[newIndex]));
+                if ( imageStack.length > 0 )
+                    setCurrentIndex(findImageIndexByFilename(images,imageStack[newIndex]));
                 return newIndex;
         });
     }
@@ -391,9 +424,70 @@ const ImageCarousel = ({ state }) => {
 
 
     // -------------------------------------
+    // LOAD PLAYLIST FUNCTION
+    // -------------------------------------
+    const loadByDate = () => {
+
+        let startDateInput = prompt("Enter the start date (YY-MM-DD) or days:"),
+            today = new Date(),
+            toYYMMDD = d => `20${String(d.getFullYear()).slice(-2)}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+            startDate;
+
+        if (!startDateInput) {
+            let d = new Date(today); d.setDate(today.getDate() - 14);
+            startDate = toYYMMDD(d);
+        } else if (!isNaN(Number(startDateInput))) {
+            let d = new Date(today); d.setDate(today.getDate() - parseInt(startDateInput,10));
+            startDate = toYYMMDD(d);
+        } else {
+            startDate = `20${startDateInput}`;
+        }
+
+        let endDateInput = prompt("Enter the end date (YY-MM-DD) or days:"),
+            today2 = new Date(),
+            toYYMMDD2 = d => `20${String(d.getFullYear()).slice(-2)}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+            endDate;
+
+        if (!endDateInput) {
+            let d = new Date(today2); d.setDate(today.getDate() - 0 );
+            endDate = toYYMMDD2(d);
+        } else if (!isNaN(Number(endDateInput))) {
+            let d = new Date(today2); d.setDate(today2.getDate() - parseInt(endDateInput,10));
+            endDate = toYYMMDD2(d);
+        } else {
+            endDate = `20${endDateInput}`;
+        }
+
+        console.log('Start date:', startDate);
+        console.log('End date:', endDate);
+
+        // Assign weights to images based on the date range
+        const newWeights = imageWeights.slice(); // Create a copy of the current weights
+        const desiredWeight = prompt("Enter a weight for images in the date range:", "10");
+        if (desiredWeight === null || desiredWeight.trim() === "") {
+            alert("Weight is required.");
+            return;
+        }   
+        const weightValue = parseInt(desiredWeight, 10);
+        if (isNaN(weightValue)) {
+            alert("Invalid weight. Please enter a number.");
+            return;
+        }   
+        imagesWithDates.forEach((image, index) => {
+            if (image && image.date >= startDate && image.date <= endDate) {
+                newWeights[index] = weightValue;
+            } else {
+                newWeights[index] = 1; // Reset weight for images outside the date range
+            }
+        }); 
+        setImageWeights(newWeights);
+
+    };
+
+
+    // -------------------------------------
     // ZOOM in our out
     // -------------------------------------
-
     const changeZoom = (direction) => {
         if ( direction === '1' ) {
             setZoom(100);
@@ -419,7 +513,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // SAVE WEIGHTS FUNCTION
-
     const saveWeights = () => {
         const name = prompt("Enter a name for the weights. start with f- to load from file:");   
             if (name === null || name.trim() === "") {
@@ -445,7 +538,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // LOAD WEIGHTS FUNCTION
-
     const loadWeights = async ( ) => {
         const name = prompt("Enter the name of the weights to load:", "f-Main");
         if (!name) {
@@ -503,7 +595,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // RANDOM PLAY FUNCTION
-
     const randomPlay = (ask = false) => {
         if (ask && !isRandomPlay) {
             const intervalInput = prompt("Enter interval time in seconds for random play:", "5");
@@ -519,7 +610,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // FLATTEN WEIGHTS FUNCTION
-
     const flattenWeights = () => {
         // for all weights > 1, set them equal to a number given by the user (prompt)
         const weight = prompt("Enter a weight for all images with a weight > 1:", "21");
@@ -540,7 +630,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // COMPRESS WEIGHTS FUNCTION
-
     const compressWeights = () => {
         // set maxWeight to the highest weight in the imageWeights array
         const maxWeight = Math.max(...imageWeights);
@@ -563,7 +652,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // INVERT WEIGHTS FUNCTION
-
     const invertWeights = () => {
         // for all weights > 1, set them equal to one
         // for all weights == 1, set them equal to a number given by the user (prompt)
@@ -590,7 +678,6 @@ const ImageCarousel = ({ state }) => {
     // -------------------------------------
     // RANDOMIZE WEIGHTS FUNCTION
     // -------------------------------------
-
     const randomizeWeights = () => {
         // prompt user for a max weight. set all weights to a random number between 1 and maxWeight
         let maxWeight = prompt("Enter a maximum weight:", "100");
@@ -756,7 +843,7 @@ const ImageCarousel = ({ state }) => {
         // VIEW IMAGES FROM SELECT SAVED IMAGES
         else if (event.key === 'v') {
             loadSubdirectory();
-            // prompt user for the subdirectory name
+            /* prompt user for the subdirectory name
             const subDir = prompt("Enter the subdirectory name to view images:");
             if (subDir === null || subDir.trim() === "") {
                 alert("Subdirectory name is required.");
@@ -800,7 +887,7 @@ const ImageCarousel = ({ state }) => {
                 });
                 return newWeights;
             });
-            
+            */
         }
 
         // HIDE BUTTONS
@@ -822,8 +909,8 @@ const ImageCarousel = ({ state }) => {
     //
     // -----------------------------------------------
 
-    // LOAD IMAGE FROM INDEX
-    
+
+    // LOAD IMAGE FROM INDEX    
     const goToIndex = () => {
         const userInput = prompt("Enter an image index:");
         const index = parseInt(userInput, 10);
@@ -839,7 +926,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // LOAD IMAGE FROM FILENAME
-
     const goToFilename = () => {
         const userInput = prompt("Enter an image filename:");
         const index = images.findIndex((path) => {
@@ -858,7 +944,6 @@ const ImageCarousel = ({ state }) => {
 
 
     // SAVE IMAGE TO DISK   
-
     const saveImage = async ( index ) => {
 
         const currentImage = images[index];
@@ -1084,6 +1169,7 @@ const ImageCarousel = ({ state }) => {
         <div id="img-container" style={styles.container}>
             <img src={images[currentIndex]} alt="carousel" style={styles.image} />
             <button onClick={loadFromPartialFilename} className='action-button' style={styles.partialButton}>{"pf"}</button>
+            <button onClick={loadByDate} className='action-button' style={styles.dateButton}>{"d"}</button>
             <button onClick={prevImage} className='action-button' style={styles.leftArrow}>{"<"}</button>
             <button onClick={randomPlay} className='action-button' style={styles.randomButton}>{"R"}</button>
             { state.isMobile ? ( <>
