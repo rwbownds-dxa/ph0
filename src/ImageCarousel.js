@@ -110,7 +110,7 @@ function findImageIndexByFilename(images, filename) {
 // -----------------------------------------------------------------
 const ImageCarousel = ({ state }) => {
 
-    console.log( 'isMobile:' + state.isMobile )
+    // console.log( 'isMobile:' + state.isMobile )
 
     // STATE VARIABLES ----------------------------------
 
@@ -266,7 +266,7 @@ const ImageCarousel = ({ state }) => {
             const totalWeight = imageWeights.reduce((sum, weight) => sum + weight, 0);
             console.log('Total weight:', totalWeight);
             let randomWeight = Math.random() * totalWeight;
-            console.log('Random weight:', randomWeight);
+            // console.log('Random weight:', randomWeight);
             for (let i = 0; i < images.length; i++) {
                 randomWeight -= imageWeights[i];
                 if (randomWeight <= 0) {
@@ -289,7 +289,6 @@ const ImageCarousel = ({ state }) => {
 
       console.log('previous ',previousImages);
       console.log('reverse ', reverseImages);
-      console.log(isDirectionForward);
     }
     };
 
@@ -449,7 +448,7 @@ const ImageCarousel = ({ state }) => {
             endDate;
 
         if (!endDateInput) {
-            let d = new Date(today2); d.setDate(today.getDate() - 0 );
+            let d = new Date(today2); d.setDate(today.getDate() + 1 );
             endDate = toYYMMDD2(d);
         } else if (!isNaN(Number(endDateInput))) {
             let d = new Date(today2); d.setDate(today2.getDate() - parseInt(endDateInput,10));
@@ -780,11 +779,12 @@ const ImageCarousel = ({ state }) => {
         
         } else if (event.key === 'p') {   // Pull the current image from the stack
             setImageStack((imageStack) => {
-                const index = imageStack.indexOf(currentIndex);
-                if (index !== -1) {
-                    imageStack.splice(index, 1);
+                const newStack = [...imageStack];
+                if (stackIndex !== -1) {
+                    const removed = newStack.splice(stackIndex, 1);
+                    console.log(`removed ${removed[0]}`);
                 }
-                return [...imageStack];
+                return newStack;
             });
 
         // load and save stack to playlist
@@ -843,51 +843,6 @@ const ImageCarousel = ({ state }) => {
         // VIEW IMAGES FROM SELECT SAVED IMAGES
         else if (event.key === 'v') {
             loadSubdirectory();
-            /* prompt user for the subdirectory name
-            const subDir = prompt("Enter the subdirectory name to view images:");
-            if (subDir === null || subDir.trim() === "") {
-                alert("Subdirectory name is required.");
-                return;
-            }
-            // find the images using savedImages array
-            let subImages = savedImages.filter((path) => path.includes(subDir));
-            console.log('Subdirectory images:', subImages);
-            
-            // remove the subdirectory name from the path
-            subImages = subImages.map((path) => path.replace(subDir, ''));
-            // remove the first character which is a '/'
-            subImages = subImages.map((path) => path.substring(1))
-            
-            // find subImages in the images array. put these in an index array
-            let subIndexes = [];
-            subImages.forEach((path) => {
-                // strip the extension before comparing
-                path = path.split('.')[0];
-                const index = images.findIndex((image) => image.includes(path));
-                if (index !== -1) {
-                    subIndexes.push(index);
-                }
-            });
-            
-            // use the subIndexes array to find the images in the images array
-            subImages = subIndexes.map((index) => images[index]);
-            
-            // set the weights for the subImages to a value specified by user. use subIndexes
-            const weight = prompt("Enter a weight for the subdirectory images:", "10");
-            if (weight === null || weight.trim() === "") {
-                alert("Weight is required.");
-                return;
-            }
-            const weightValue = parseInt(weight, 10);
-            console.log('Weight:', weightValue);
-            setImageWeights((prevWeights) => {
-                const newWeights = [...prevWeights];
-                subIndexes.forEach((index) => {
-                    newWeights[index] = weightValue;
-                });
-                return newWeights;
-            });
-            */
         }
 
         // HIDE BUTTONS
@@ -906,7 +861,7 @@ const ImageCarousel = ({ state }) => {
     
     
     // -----------------------------------------------
-    //
+    // MORE HELPER FUNCTIONS
     // -----------------------------------------------
 
 
@@ -1106,10 +1061,43 @@ const ImageCarousel = ({ state }) => {
 
     // RANDOM PLAY USE EFFECT
 
+    const getRandomInterval = (jackpot) => {
+        let nextInterval = Math.random() * 2 * randomPlayInterval;
+        if ( jackpot.on ) { 
+            nextInterval *= jackpot.compression;
+            jackpot.counter += 1;
+            jackpot.on = ( jackpot.counter <= jackpot.dur )
+        }
+        else {
+            if ( Math.random() <= jackpot.chance ) {
+            console.log('!! ----- JACKPOT ---------------------------- !!')
+                nextInterval *= jackpot.compression;
+                jackpot.dur = ( Math.random() + 0.5 ) * jackpot.duration;
+                jackpot.counter = 1;
+                jackpot.on = true;
+            }
+        } 
+        return { nextInterval, jackpot } 
+    }
+
     useEffect(() => {
         if (isRandomPlay) {
-            const interval = setInterval(randomImage, randomPlayInterval);
-            return () => clearInterval(interval);
+            let timeoutId;
+            let jackpot = { chance: 0.10, duration: 20, compression: 0.25, on: false, counter: 0, dur: 20 }
+        
+            const runRandomImage = () => {
+
+                randomImage();
+
+                const result = getRandomInterval(jackpot);
+                let nextInterval = result.nextInterval;
+                jackpot = result.jackpot;
+                console.log('interval ', nextInterval)
+
+                timeoutId = setTimeout(runRandomImage, nextInterval);
+            };
+            runRandomImage();
+            return () => clearTimeout(timeoutId);
         }
     }, [isRandomPlay, randomPlayInterval]);
 
@@ -1118,14 +1106,27 @@ const ImageCarousel = ({ state }) => {
 
     useEffect(() => {
         if (isStackRandomPlay) {
-            const interval = setInterval(() => {
+
+            let timeoutId;
+            let jackpot = { chance: 0.20, duration: 20, compression: 0.5, on: false, counter: 0, dur: 20 }
+            
+            const runRandomStackImage = () => {
                 if (imageStack.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * imageStack.length);
-                    // console.log(imageStack[randomIndex])
-                    setCurrentIndex(findImageIndexByFilename(images, imageStack[randomIndex]));
+                        const randomIndex = Math.floor(Math.random() * imageStack.length);
+                        // console.log(imageStack[randomIndex])
+                        setCurrentIndex(findImageIndexByFilename(images, imageStack[randomIndex]));
                 }
-            }, randomPlayInterval);
-            return () => clearInterval(interval);
+
+                const result = getRandomInterval(jackpot);
+                let nextInterval = result.nextInterval;
+                jackpot = result.jackpot;
+                console.log('interval ', nextInterval)
+
+                timeoutId = setTimeout(runRandomStackImage, nextInterval);
+            }
+
+            runRandomStackImage();
+            return () => clearTimeout(timeoutId);
         }
     }, [isStackRandomPlay, randomPlayInterval, imageStack]);
 
