@@ -423,7 +423,7 @@ const ImageCarousel = ({ state }) => {
 
 
     // -------------------------------------
-    // LOAD PLAYLIST FUNCTION
+    // LOAD BY DATE FUNCTION
     // -------------------------------------
     const loadByDate = () => {
 
@@ -472,11 +472,25 @@ const ImageCarousel = ({ state }) => {
             alert("Invalid weight. Please enter a number.");
             return;
         }   
+
+        function toUTCDateString(date) {
+            // Returns 'YYYY-MM-DD' in UTC
+            const d = new Date(date);
+            return d.getUTCFullYear() + '-' +
+                String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getUTCDate()).padStart(2, '0');
+        }
+
         imagesWithDates.forEach((image, index) => {
-            if (image && image.date >= startDate && image.date <= endDate) {
+            if (
+                image &&
+                toUTCDateString(image.date) >= toUTCDateString(startDate) &&
+                toUTCDateString(image.date) <= toUTCDateString(endDate)
+            ) {
+            console.log(`image added`, image )
                 newWeights[index] = weightValue;
             } else {
-                newWeights[index] = 1; // Reset weight for images outside the date range
+                // newWeights[index] = 1; // Reset weight for images outside the date range
             }
         }); 
         setImageWeights(newWeights);
@@ -711,9 +725,10 @@ const ImageCarousel = ({ state }) => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleKeyDown = async (event) => {
-
+console.log(event)
         // next and previous images (index, random)
         if (event.key === "ArrowRight") {
+            
             nextImage();
         
         } else if (event.key === "ArrowLeft") {
@@ -733,9 +748,11 @@ const ImageCarousel = ({ state }) => {
         } else if (event.key === '[') {   // Go to the next image in the stack
             prevPlaylistImage();
 
-        } else if (event.key === 'o') {   // Go to the next image in the stack
+        } else if (event.key === 'o') {   // Add image to stack
             addImageToPlaylist();
 
+        } else if (event.key === '\\') { // get random image
+            setRandomStackImage();
 
 
         // random play slideshow
@@ -1050,7 +1067,23 @@ const ImageCarousel = ({ state }) => {
     };
 
 
+    // RANDOM STACK IMAGE
+    const  setRandomStackImage = () => {
+
+        const stackIndex = Math.floor(Math.random() * imageStack.length);
+        const randomIndex = (findImageIndexByFilename(images, imageStack[stackIndex]) || 0);
+        console.log('Random index:', randomIndex);
+
+      setCurrentIndex(randomIndex);
+
+    }
+
+
+
+
+    // ----------------------------------------------------------------------------------------
     // ----  USE EFFECTS -------------------------------
+    // ----------------------------------------------------------------------------------------
 
     // INDEX CHANGE USE EFFECT
 
@@ -1164,29 +1197,49 @@ const ImageCarousel = ({ state }) => {
     }, []);
 
 
+
+    // ----------------------------------------------------------------------------------------
     // DISPLAY JSX
+    // ----------------------------------------------------------------------------------------
 
     return (
         <div id="img-container" style={styles.container}>
+
             <img src={images[currentIndex]} alt="carousel" style={styles.image} />
-            <button onClick={loadFromPartialFilename} className='action-button' style={styles.partialButton}>{"pf"}</button>
-            <button onClick={loadByDate} className='action-button' style={styles.dateButton}>{"d"}</button>
-            <button onClick={prevImage} className='action-button' style={styles.leftArrow}>{"<"}</button>
-            <button onClick={randomPlay} className='action-button' style={styles.randomButton}>{"R"}</button>
+
+            <button onClick={loadFromPartialFilename} className='action-button' style={styles.partialButton}>
+            {"pf"}</button>
+            <button onClick={loadByDate} className='action-button' style={styles.dateButton}>
+            {"d"}</button>
+            <button onClick={prevImage} className='action-button' style={styles.leftArrow}>
+            {"<"}</button>
+            <button onClick={randomPlay} className='action-button' style={styles.randomButton}>
+            {"R"}</button>
             { state.isMobile ? ( <>
-                <button onClick={loadWeights} className="action-button" style={styles.weightButton}>{"lw"}</button>
-                <button onClick={setWeightForCurrentImage} className="action-button" style={styles.setWeightButton}>{"sw"}</button>
-                <button onClick={loadSubdirectory}className="action-button" style={styles.loadSub}>{"sb"}</button>
+                <button onClick={loadWeights} className="action-button" style={styles.weightButton}>
+                {"lw"}</button>
+                <button onClick={setWeightForCurrentImage} className="action-button" style={styles.setWeightButton}>
+                {"sw"}</button>
+                <button onClick={loadSubdirectory}className="action-button" style={styles.loadSub}>
+                {"sb"}</button>
                 </>
             ) : (
-                <button onClick={loadWeights} className="action-button" style={styles.weightButton}>{"W"}</button>
+                <button onClick={loadWeights} className="action-button" style={styles.weightButton}>
+                {"W"}</button>
             )}
-            <button onClick={nextImage} className='action-button' style={styles.rightArrow}>{">"}</button>
-            <button onClick={gobackImage} className='action-button' style={styles.leftArrow2}>{"<<"}</button>
-            <button onClick={randomImage} className='action-button' style={styles.rightArrow2}>{">>"}</button>
-            <button onClick={copyFileNameToClipboard} className='action-button' style={styles.fileName}>{images[currentIndex].split('/').pop().split('.')[0]}</button>
-            <button onClick={setWeightForCurrentImage} className='action-button' style={styles.imageWeight}>{imageWeights[currentIndex]}</button>
-            <button onClick={copyIndexToClipboard} className='action-button' style={styles.currentIndex}>{currentIndex}</button>
+
+            <button onClick={nextImage} className='action-button' style={styles.rightArrow}>
+            {">"}</button>
+            <button onClick={gobackImage} className='action-button' style={styles.leftArrow2}>
+            {"<<"}</button>
+            <button onClick={randomImage} className='action-button' style={styles.rightArrow2}>
+            {">>"}</button>
+            <button onClick={copyFileNameToClipboard} className='action-button' style={styles.fileName}>
+            {images[currentIndex].split('/').pop().split('.')[0]}</button>
+            <button onClick={setWeightForCurrentImage} className='action-button' style={styles.imageWeight}>
+            {imageWeights[currentIndex]}</button>
+            <button onClick={copyIndexToClipboard} className='action-button' style={styles.currentIndex}>
+            {currentIndex}</button>
         </div>
     );
 
