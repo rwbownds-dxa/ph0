@@ -15,6 +15,16 @@
 /img
 /src/img
 /src/imgSav
+/src/imgDates.json
+/src/src.zip
+
+# media files
+*.camrec
+*.jpg
+*.webp
+*.gif
+*.png
+*.json
 
 # misc
 .DS_Store
