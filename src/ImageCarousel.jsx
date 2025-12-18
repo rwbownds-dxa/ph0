@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { saveAs } from 'file-saver';
 import './ImageCarousel.css';
 import imageDates from './imgDates.json'
+import { parseGIF, decompressFrames } from "gifuct-js";
 
 
 // -----------------------------------------------------------------
@@ -14,11 +15,12 @@ let shortFileNames = [];
 let images = [];
 let imagesWithDates = [];
 let failedImages = [];
+let imageIteration = 0
 
 
 // ----- SRC/imgNew -----
 try {
-    newImages = require.context("./imgNew", false, /\.(jpg|gif|png)$/).keys().map((path) => require(`./imgNew/${path.replace('./', '')}`));
+    const newImages = Object.values(import.meta.glob('./imgNew/*.{jpg,gif,png}', { eager: true, query: '?url', import: 'default' })).map((url) => url);
 
 } catch (error) {
     console.error("Error loading images from imgNew:", error);
@@ -27,7 +29,7 @@ console.log('newImages: ', newImages);
 
 
 // ----- SRC/img -----
-const standardImages = require.context("./img", false, /\.(BMP|bmp|JPG|webp|jpeg|jpg|gif|png|GIF|PNG)$/).keys().map((path) => require(`./img/${path.replace('./', '')}`));
+const standardImages = Object.values(import.meta.glob('./img/*.{bmp,BMP,jpg,JPG,webp,WEBP,jpeg,JPEG,gif,GIF,png,PNG}', { eager: true, query: '?url', import: 'default' })).map((url) => url);
 console.log ('standardImages: ', standardImages);
 
 
@@ -81,7 +83,7 @@ const initialWeights = [...Array(newImages.length).fill(20), ...Array(standardIm
 
 let savedImages = [];
 try {
-    savedImages = require.context("./imgSav", true, /\/[^/]+$/).keys().map((path) => path.replace('./', ''));
+    const savedImages = Object.keys(import.meta.glob('./imgSav/*', { eager: true, query: '?url', import: 'default' })).map((path) => path.replace('./imgSav/', ''));
 } catch (error) {
     console.error("Error loading savedImages:", error);
 }
@@ -102,6 +104,218 @@ function findImageIndexByFilename(images, filename) {
         return includesFilename;
     });
 }
+
+
+
+
+
+
+function GifCanvas({ src, style, loop = true, autoPlay = true }) {
+  const canvasRef = useRef(null);
+  const framesRef = useRef(null);
+  const currentRef = useRef(0);
+  const timerRef = useRef(null);
+  const previousImageDataRef = useRef(null);
+  const [loaded, setLoaded] = useState(false);
+  const [playing, setPlaying] = useState(autoPlay);
+  
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch(src);
+        const buffer = await res.arrayBuffer();
+        const gif = parseGIF(buffer);
+        const frames = decompressFrames(gif, true);
+        if (!mounted) return;
+        
+        console.log('GIF info:', {
+          frames: frames.length,
+          firstFrame: frames[0],
+          dimensions: gif.lsd
+        });
+        
+        framesRef.current = frames;
+        const width = gif?.lsd?.width || frames[0]?.dims?.width || 1;
+        const height = gif?.lsd?.height || frames[0]?.dims?.height || 1;
+        const canvas = canvasRef.current;
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Initialize with transparent background
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = 'transparent';
+        ctx.fillRect(0, 0, width, height);
+        
+        setLoaded(true);
+        if (autoPlay) start();
+      } catch (err) {
+        console.error("GifCanvas load error:", err);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+      stop();
+    };
+  }, [src]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    playing ? start() : stop();
+  }, [playing, loaded]);
+
+  const start = () => {
+    stop();
+    currentRef.current = 0;
+    // Clear canvas and reset state
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    previousImageDataRef.current = null;
+    drawNext();
+  };
+
+  const stop = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const drawNext = () => {
+    const frames = framesRef.current;
+    const canvas = canvasRef.current;
+    if (!frames || !canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    const frame = frames[currentRef.current];
+    if (!frame) return;
+
+    const frameWidth = frame.dims?.width || canvas.width;
+    const frameHeight = frame.dims?.height || canvas.height;
+    const left = frame.dims?.left || 0;
+    const top = frame.dims?.top || 0;
+
+    // Handle disposal of previous frame
+    const disposal = frame.disposalType || 0;
+    
+    if (currentRef.current > 0) {
+      const prevDisposal = frames[currentRef.current - 1]?.disposalType || 0;
+      
+      if (prevDisposal === 2) {
+        // Previous frame said to restore to background - clear its area
+        const prevFrame = frames[currentRef.current - 1];
+        const prevLeft = prevFrame.dims?.left || 0;
+        const prevTop = prevFrame.dims?.top || 0;
+        const prevWidth = prevFrame.dims?.width || canvas.width;
+        const prevHeight = prevFrame.dims?.height || canvas.height;
+        ctx.clearRect(prevLeft, prevTop, prevWidth, prevHeight);
+      } else if (prevDisposal === 3) {
+        // Restore to previous - restore saved image data
+        if (previousImageDataRef.current) {
+          ctx.putImageData(previousImageDataRef.current, 0, 0);
+        }
+      }
+    }
+    
+    // Save current state if next frame will need it
+    if (disposal === 3) {
+      previousImageDataRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
+    // Draw current frame
+    try {
+      const patch = frame.patch;
+      
+      if (patch && patch.length === frameWidth * frameHeight * 4) {
+        // Handle transparency for pixels that should be transparent
+        const processedPatch = new Uint8ClampedArray(patch);
+        
+        // If frame has transparency, handle it properly
+        if (frame.transparentIndex !== undefined && frame.transparentIndex !== null) {
+          // For disposal type 1 (do not dispose), transparent pixels should not overwrite
+          // We need to only draw non-transparent pixels
+          const currentImageData = ctx.getImageData(left, top, frameWidth, frameHeight);
+          const currentData = currentImageData.data;
+          
+          for (let i = 0; i < processedPatch.length; i += 4) {
+            // If this pixel is transparent (alpha = 0), keep the existing pixel
+            if (processedPatch[i + 3] === 0) {
+              processedPatch[i] = currentData[i];         // R
+              processedPatch[i + 1] = currentData[i + 1]; // G
+              processedPatch[i + 2] = currentData[i + 2]; // B
+              processedPatch[i + 3] = currentData[i + 3]; // A
+            }
+          }
+        }
+        
+        const imageData = new ImageData(processedPatch, frameWidth, frameHeight);
+        ctx.putImageData(imageData, left, top);
+      } else {
+        console.error('Unexpected patch size or no patch data:', {
+          patchLength: patch?.length,
+          expected: frameWidth * frameHeight * 4,
+          frame: currentRef.current
+        });
+      }
+    } catch (err) {
+      console.error('Error drawing frame:', err, frame);
+    }
+
+    // Set timing for next frame
+    let delayMs = frame.delay * 1;
+    if (!delayMs || delayMs < 20) delayMs = 20;
+
+    currentRef.current++;
+    if (currentRef.current >= frames.length) {
+      if (loop) {
+        currentRef.current = 0;
+      } else {
+        return stop();
+      }
+    }
+
+    timerRef.current = setTimeout(drawNext, delayMs);
+  };
+
+  const handleToggle = () => setPlaying((p) => !p);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ display: "block", cursor: "pointer", ...style }}
+      onClick={handleToggle}
+      aria-label="gif-canvas"
+    />
+  );
+}
+
+/**
+ * renderImage - updated to use GifCanvas for GIFs
+ * Expects `image` either:
+ *  - a string (URL), or
+ *  - an object with { type: 'gif'|'image', src: '...' }
+ */
+export function renderImage(image, styles = {}) {
+  if (!image) return null;
+
+  // normalize
+  const isString = typeof image === "string";
+  const type = isString ? "image" : image.type;
+  const src = isString ? image : image.src || image.url || "";
+
+  const GIF_TOGGLE = false;
+  return <div>Blow Me</div>
+  return <img src={src} alt="carousel" style={styles.image} />;
+  if (type === "gif" && GIF_TOGGLE ) {
+    return <GifCanvas src={src} style={styles.image} />;
+  } else {
+    return <img src={src} alt="carousel" style={styles.image} />;
+  }
+}
+
+
 
 
 
@@ -327,8 +541,15 @@ const ImageCarousel = ({ state }) => {
     const nextPlaylistImage = () => {
         setStackIndex((prevIndex) => {
                         const newIndex = (prevIndex + 1) % imageStack.length;
+                        let jibber = findImageIndexByFilename(images, imageStack[newIndex])
+                        console.log(`prev ${prevIndex} new ${newIndex}`)
                         if ( imageStack.length > 0 )
-                            setCurrentIndex(findImageIndexByFilename(images, imageStack[newIndex]));
+                            jibber = findImageIndexByFilename(images, imageStack[newIndex])
+                            console.log(jibber)
+                            if (jibber > -1 ) 
+                                setCurrentIndex(findImageIndexByFilename(images, imageStack[newIndex]));
+                            else
+                                console.log(`${imageStack[newIndex]} not found`)
                         console.log('image stack', imageStack)
                         return newIndex;
                     });
@@ -385,11 +606,16 @@ const ImageCarousel = ({ state }) => {
             alert("Playlist name is required.");
             return;
         }
-        const playlist = JSON.parse(localStorage.getItem(listName));
-        console.log('Playlist load:', playlist);
-        if (playlist) {
-            const mappedPlaylist = playlist.map((filename) => {
+        let playlistLoad = JSON.parse(localStorage.getItem(listName));
+        console.log('Playlist load:', playlistLoad);
+
+        let playlist = []
+        if (playlistLoad) {
+            const mappedPlaylist = playlistLoad.map((filename,idx) => {
                 const index = findImageIndexByFilename(images,filename)
+                console.log(`load ${idx} ${filename} ${index}`)
+                if (index < 0 ) return;
+                playlist.push(playlistLoad[idx])
                 return index;
             });
 
@@ -725,7 +951,7 @@ const ImageCarousel = ({ state }) => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleKeyDown = async (event) => {
-console.log(event)
+        console.log(event)
         // next and previous images (index, random)
         if (event.key === "ArrowRight") {
             
@@ -754,6 +980,8 @@ console.log(event)
         } else if (event.key === '\\') { // get random image
             setRandomStackImage();
 
+        } else if (event.key === '=') { // get random image
+            setRandomMixedImage();
 
         // random play slideshow
         } else if (event.key === "r") {
@@ -1071,14 +1299,23 @@ console.log(event)
     const  setRandomStackImage = () => {
 
         const stackIndex = Math.floor(Math.random() * imageStack.length);
-        const randomIndex = (findImageIndexByFilename(images, imageStack[stackIndex]) || 0);
+        let randomIndex = (findImageIndexByFilename(images, imageStack[stackIndex]) || 0);
+        randomIndex = Math.max(0,randomIndex)
         console.log('Random index:', randomIndex);
 
       setCurrentIndex(randomIndex);
+      setPrevImages((prevImages) => [...prevImages, randomIndex]);
 
     }
-
-
+    // RANDOM MIXED IMAGE
+    const  setRandomMixedImage = () => {
+        imageIteration += 1;
+        console.log( (imageIteration % 2) )
+        if ( (imageIteration % 2) > 0.01 )
+            setRandomStackImage();
+        else
+            randomImage();
+    }
 
 
     // ----------------------------------------------------------------------------------------
@@ -1120,7 +1357,8 @@ console.log(event)
         
             const runRandomImage = () => {
 
-                randomImage();
+                // randomImage();
+                setRandomMixedImage();
 
                 const result = getRandomInterval(jackpot);
                 let nextInterval = result.nextInterval;
@@ -1145,9 +1383,10 @@ console.log(event)
             
             const runRandomStackImage = () => {
                 if (imageStack.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * imageStack.length);
-                        // console.log(imageStack[randomIndex])
-                        setCurrentIndex(findImageIndexByFilename(images, imageStack[randomIndex]));
+                        const randomStackIndex = Math.floor(Math.random() * imageStack.length);
+                        const randomIndex = findImageIndexByFilename(images, imageStack[randomStackIndex])
+                        setCurrentIndex(randomIndex);
+                        setPrevImages((prevImages) => [...prevImages, randomIndex]);
                 }
 
                 const result = getRandomInterval(jackpot);
@@ -1198,6 +1437,27 @@ console.log(event)
 
 
 
+    function renderImage(image, styles = {}) {
+    if (!image) return null;
+
+    // normalize
+    const isString = typeof image === "string";
+    const type = isString ? "image" : image.type;
+    const src = isString ? image : image.src || image.url || "";
+    // type = the characters after the last . character in src
+    const imgType = src.split('.').pop();
+    console.log(src)
+
+    return <img src={src} alt="carousel" style={styles.image} />;
+    if (imgType === "gif") {
+        return <GifCanvas src={src} style={styles.image} />;
+    } else {
+        return <img src={src} alt="carousel" style={styles.image} />;
+    }
+    }
+
+
+
     // ----------------------------------------------------------------------------------------
     // DISPLAY JSX
     // ----------------------------------------------------------------------------------------
@@ -1205,7 +1465,7 @@ console.log(event)
     return (
         <div id="img-container" style={styles.container}>
 
-            <img src={images[currentIndex]} alt="carousel" style={styles.image} />
+            { renderImage(images[currentIndex],styles) }
 
             <button onClick={loadFromPartialFilename} className='action-button' style={styles.partialButton}>
             {"pf"}</button>
